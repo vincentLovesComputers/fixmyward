@@ -1,0 +1,1269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fix My Ward</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout concept: a civic notice board. Reports are posts with reference numbers and a visible clock;
+   the map and ward pages exist to answer one question: who is responsible here, and what have they done? */
+:root{
+  --bg:#E8EDEB;--surface:#FFFFFF;--surface2:#F1F5F3;--ink:#12201B;--muted:#54655E;--line:#D0DAD6;
+  --accent:#0A6B4D;--accent-ink:#FFFFFF;--rep:#B3261E;--ack:#8F5E00;--prog:#1D5FA8;--done:#1B7F4B;
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D1512;--surface:#15201B;--surface2:#1B2822;--ink:#E6EFEA;--muted:#9DB0A8;--line:#2A3A33;
+  --accent:#3FBF8A;--accent-ink:#05241A;--rep:#FF8F85;--ack:#E3B341;--prog:#7AB4F5;--done:#5FD39A;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1512;--surface:#15201B;--surface2:#1B2822;--ink:#E6EFEA;--muted:#9DB0A8;--line:#2A3A33;
+  --accent:#3FBF8A;--accent-ink:#05241A;--rep:#FF8F85;--ack:#E3B341;--prog:#7AB4F5;--done:#5FD39A;color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+.wrap{max-width:1100px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);letter-spacing:-.01em;margin:0;text-wrap:balance;line-height:1.15}
+h2{font-size:22px;font-weight:800}h3{font-size:16px;font-weight:700}
+a{color:var(--accent)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-size:12.5px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grow{flex:1 1 0;min-width:0}
+.stack{display:flex;flex-direction:column;gap:14px}
+
+/* header */
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:14px;border-bottom:2px solid var(--ink);margin-bottom:18px}
+.brand{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:-.02em;text-decoration:none;color:var(--ink);display:flex;align-items:baseline;gap:8px}
+.brand small{font:500 12px var(--f-body);color:var(--muted);letter-spacing:0}
+nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+nav a{padding:7px 12px;text-decoration:none;color:var(--ink);font-weight:500;border-radius:4px;border:1px solid transparent}
+nav a:hover{background:var(--surface)}
+nav a.on{border-color:var(--ink);background:var(--surface)}
+nav a.cta{background:var(--accent);color:var(--accent-ink);font-weight:600}
+nav a.cta.on{outline:2px solid var(--ink)}
+
+/* primitives */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ink);background:var(--surface);padding:8px 14px;border-radius:4px;cursor:pointer;font-weight:500;text-decoration:none;color:var(--ink);min-height:38px}
+.btn:hover{background:var(--surface2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{border-color:var(--rep);color:var(--rep)}
+.btn.sm{padding:4px 10px;min-height:30px;font-size:13px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.card.flat{background:var(--surface2)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:99px;font-size:12.5px;font-weight:600;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c)}
+.pill.rep{--c:var(--rep)}.pill.ack{--c:var(--ack)}.pill.prog{--c:var(--prog)}.pill.done{--c:var(--done)}.pill.late{--c:var(--rep)}.pill.ok{--c:var(--done)}.pill.neutral{--c:var(--muted)}
+.chip{display:inline-block;padding:2px 8px;border:1px solid var(--line);border-radius:4px;font-size:12.5px;background:var(--surface2);color:var(--muted)}
+label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:13.5px}
+label.f>span.hint{font-weight:400;color:var(--muted);font-size:12.5px}
+input[type=text],input[type=email],input[type=number],input[type=search],select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--surface);min-height:38px}
+textarea{min-height:90px;resize:vertical}
+.notice{border-left:4px solid var(--prog);background:var(--surface2);padding:10px 12px;border-radius:0 4px 4px 0;font-size:13.5px}
+.notice.warn{border-color:var(--ack)}.notice.bad{border-color:var(--rep)}
+.empty{padding:28px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.stat b{display:block;font:800 24px var(--f-display);font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{font-size:12.5px;color:var(--muted)}
+.stat.bad b{color:var(--rep)}.stat.good b{color:var(--done)}
+
+/* feed */
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end}
+.post{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:0 0 14px;position:relative;overflow:hidden}.post>:not(.pic){margin-inline:16px}
+.post:hover{border-color:var(--ink)}
+.post h3 a{color:var(--ink);text-decoration:none}
+.post h3 a::after{content:"";position:absolute;inset:0}
+.post .meta{color:var(--muted);font-size:13.5px}
+.post .foot{grid-column:1/-1;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted);padding-top:8px;border-top:1px solid var(--line);margin-top:4px}
+.pic{position:relative;aspect-ratio:16/9;max-height:260px;width:100%;background:var(--surface2);overflow:hidden;border-bottom:1px solid var(--line)}
+.pic img,.pic svg{width:100%;height:100%;object-fit:cover;display:block}
+.pic.big{max-height:460px;aspect-ratio:16/10;border:1px solid var(--line);border-radius:6px}
+.pic .cap{position:absolute;left:8px;bottom:8px;font:500 11px var(--f-mono);background:rgba(0,0,0,.68);color:#fff;padding:2px 7px;border-radius:3px}
+.post .head{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.demo-tag{font:600 11px var(--f-mono);text-transform:uppercase;letter-spacing:.06em;border:1px dashed var(--muted);padding:1px 6px;border-radius:3px;color:var(--muted)}
+
+/* hero carousel */
+.hero{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.cview{overflow:hidden;touch-action:pan-y}
+.ctrack{display:flex;transition:transform .5s ease}
+.cslide{flex:0 0 100%;min-width:0;position:relative;padding:22px;min-height:360px}
+.cbar{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line);background:var(--surface2)}
+.cdots{display:flex;gap:8px;flex:1;justify-content:center}
+.cdots button{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--ink);background:transparent;padding:0;cursor:pointer}
+.cdots button[aria-selected=true]{background:var(--ink)}
+.eyebrow{font:600 12px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.eyebrow.lt{color:rgba(255,255,255,.82)}
+.hl{font-size:clamp(24px,4.2vw,36px);font-weight:800}
+.minis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.mini{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+.mini:hover{border-color:var(--ink)}
+.mini .pic{aspect-ratio:16/10}
+.mini .mb{padding:0 12px 12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:640px){.ba{grid-template-columns:1fr}}
+.ba figure{margin:0;position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.ba svg{display:block;width:100%;height:auto}
+.ba figcaption{position:absolute;top:8px;left:8px;font:700 12px var(--f-mono);padding:3px 9px;border-radius:3px;text-transform:uppercase;letter-spacing:.08em;background:#B3261E;color:#fff}
+.ba figure.after figcaption{background:#1B7F4B}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{padding:6px 12px;border:1px solid var(--ink);border-radius:4px;background:var(--surface);cursor:pointer;font-weight:500}
+.tab[aria-selected=true]{background:var(--ink);color:var(--bg)}
+.cslide.fx{padding:0;color:#fff;min-height:400px;display:flex}
+.fx svg.bg{position:absolute;inset:0;width:100%;height:100%}
+.fx .scrim{position:absolute;inset:0;background:rgba(10,14,30,.58)}
+.fx .inner{position:relative;max-width:660px;margin:0 auto;padding:44px 22px;text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;flex:1}
+.fx.join{background:linear-gradient(135deg,#0A6B4D,#0E3B4A)}
+.fx.join .inner{max-width:860px}
+.fx .pts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;width:100%;text-align:left}
+.fx .pts div{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);border-radius:6px;padding:10px 12px;font-size:14px}
+.fx .pts b{display:block;font-family:var(--f-display);font-size:16px}
+.btn.light{background:#fff;color:#12201B;border-color:#fff;font-weight:600}
+.btn.ghost{background:transparent;color:#fff;border-color:#fff}
+.fx .btn:hover{filter:brightness(.93)}
+/* fun facts */
+.ffeat{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:22px;align-items:center;background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:22px}
+@media(max-width:640px){.ffeat{grid-template-columns:minmax(0,1fr);gap:10px}}
+.ffeat .big{font:800 clamp(38px,7vw,60px)/1 var(--f-display);letter-spacing:-.02em;overflow-wrap:break-word}
+.ffeat .big.long{font-size:clamp(26px,4.4vw,38px)}
+.ffeat .eyebrow{color:inherit;opacity:.85}
+.ffeat .btn{align-self:flex-start;background:transparent;color:inherit;border-color:currentColor}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.fact{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
+.fact .st{font:800 28px/1.1 var(--f-display);color:var(--accent);overflow-wrap:anywhere}
+.fact .sl{font:500 12px var(--f-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.fact p{margin:0;font-size:14.5px}
+.fact .chip{align-self:flex-start;margin-top:auto}
+.quiz .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.quiz .opts button{text-align:left;padding:10px 12px;border:1px solid var(--ink);border-radius:6px;background:var(--surface);cursor:pointer;font-weight:500}
+.quiz .opts button:hover:not([disabled]){background:var(--surface2)}
+.quiz .opts button.right{border-color:var(--done);background:color-mix(in srgb,var(--done) 16%,var(--surface))}
+.quiz .opts button.wrong{border-color:var(--rep);background:color-mix(in srgb,var(--rep) 14%,var(--surface))}
+/* area profile */
+.areabtn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.navbtn{padding:7px 12px;border:1px solid var(--ink);border-radius:4px;background:var(--surface);color:var(--ink);font-weight:600;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.navbtn:hover{background:var(--surface2)}
+.ovl{position:fixed;inset:0;background:rgba(10,20,16,.62);z-index:30;display:grid;place-items:center;padding:16px}
+.ovl .dlg{background:var(--surface);color:var(--ink);border:1px solid var(--ink);border-radius:8px;max-width:540px;width:100%;max-height:92vh;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.sugglist{list-style:none;margin:4px 0 0;padding:0;background:var(--surface);border:1px solid var(--ink);border-radius:4px;max-height:200px;overflow:auto}
+.sugglist li button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:8px 10px;border:0;background:none;cursor:pointer}
+.sugglist li button:hover,.sugglist li button:focus-visible{background:var(--surface2)}
+.fsec{display:flex;flex-direction:column;gap:10px}
+.fact .where{font-size:12.5px;color:var(--muted)}
+/* detail */
+.detail{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media(max-width:860px){.detail{grid-template-columns:minmax(0,1fr)}}
+.photo{width:100%;max-height:420px;object-fit:cover;border-radius:6px;border:1px solid var(--line);background:var(--surface2)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.step{padding:8px 6px;text-align:center;font-size:12.5px;font-weight:600;border-top:4px solid var(--line);color:var(--muted)}
+.step.on{border-color:var(--c);color:var(--ink)}
+.step.s0{--c:var(--rep)}.step.s1{--c:var(--ack)}.step.s2{--c:var(--prog)}.step.s3{--c:var(--done)}
+.tl{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--line);display:flex;flex-direction:column;gap:14px}
+.tl li{position:relative}
+.tl li::before{content:"";position:absolute;left:-25px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--surface);border:3px solid var(--c,var(--muted))}
+.tl li.rep{--c:var(--rep)}.tl li.ack{--c:var(--ack)}.tl li.prog{--c:var(--prog)}.tl li.done{--c:var(--done)}.tl li.late{--c:var(--rep)}
+.tl b{display:block}
+.tl .when{font-size:12.5px;color:var(--muted)}
+.tl img{max-width:260px;width:100%;border-radius:4px;margin-top:6px;border:1px solid var(--line)}
+kbd.addr{display:block;font:500 13px var(--f-mono);background:var(--surface2);padding:8px 10px;border:1px solid var(--line);border-radius:4px;overflow-wrap:anywhere;user-select:all}
+.comment{padding:10px 0;border-top:1px solid var(--line)}
+.comment .by{font-size:12.5px;color:var(--muted)}
+
+/* new report */
+.form{max-width:760px;display:flex;flex-direction:column;gap:18px}
+.drop{display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px;border:2px dashed var(--ink);border-radius:6px;background:var(--surface);cursor:pointer;text-align:center}
+.drop img{max-height:260px;max-width:100%;border-radius:4px}
+.cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.cat{display:flex;gap:8px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);cursor:pointer}
+.cat input{margin-top:3px}
+.cat:has(input:checked){border-color:var(--accent);outline:2px solid var(--accent)}
+.cat span small{display:block;color:var(--muted);font-size:12px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.sect{display:flex;flex-direction:column;gap:12px}
+.sect>h3{display:flex;gap:10px;align-items:center}
+.sect>h3 i{font:500 12px var(--f-mono);font-style:normal;background:var(--ink);color:var(--bg);padding:2px 7px;border-radius:3px}
+
+/* explore */
+.explore{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:16px;align-items:start}
+@media(max-width:860px){.explore{grid-template-columns:minmax(0,1fr)}}
+.mapcard{position:sticky;top:8px}
+@media(max-width:860px){.mapcard{position:static}}
+canvas.map{width:100%;height:auto;display:block;border-radius:4px;cursor:pointer;background:var(--surface2)}
+.crumbs{display:flex;gap:6px;flex-wrap:wrap;font-size:13.5px;align-items:center}
+.crumbs span.sep{color:var(--muted)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;cursor:pointer;text-decoration:none;color:var(--ink)}
+.item:hover{border-color:var(--ink)}
+.wards{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;max-height:280px;overflow:auto;padding:2px}
+.wards a{display:block;text-align:center;padding:6px 0;border:1px solid var(--line);border-radius:4px;text-decoration:none;color:var(--ink);background:var(--surface);font:500 13px var(--f-mono);font-variant-numeric:tabular-nums}
+.wards a:hover{border-color:var(--ink)}
+.wards a.has{background:color-mix(in srgb,var(--ack) 22%,var(--surface));border-color:var(--ack)}
+.wards a.late{background:color-mix(in srgb,var(--rep) 24%,var(--surface));border-color:var(--rep)}
+.person{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.person:first-child{border-top:0}
+.avatar{width:56px;height:56px;border-radius:50%;object-fit:cover;background:var(--surface2);border:1px solid var(--line);display:grid;place-items:center;font:700 18px var(--f-display);flex:none;color:var(--muted)}
+.party{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:600}
+.party i{width:10px;height:10px;border-radius:2px;background:hsl(var(--h) 60% 45%)}
+.sugg{position:relative}
+.sugg ul{list-style:none;margin:4px 0 0;padding:0;background:var(--surface);border:1px solid var(--ink);border-radius:4px;max-height:260px;overflow:auto}
+.sugg li button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:8px 10px;border:0;background:none;cursor:pointer}
+.sugg li button:hover,.sugg li button:focus-visible{background:var(--surface2)}
+
+/* ranking */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface2)}
+td.num,th.num{text-align:right}
+.bar{display:inline-block;height:8px;border-radius:2px;background:var(--done);vertical-align:middle;min-width:2px}
+tr:last-child td{border-bottom:0}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(18px,env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;z-index:20;max-width:90vw;font-weight:500}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+<meta name="description" content="Report potholes, blown transformers and dumping in your ward, then track every update and see which municipal offices are keeping up.">
+<meta property="og:title" content="Fix My Ward">
+<meta property="og:description" content="Report service delivery problems in your ward and hold municipal offices to account.">
+<meta property="og:type" content="website">
+<style>
+/* reset the artifact viewer normally supplies */
+:root{color-scheme:light}
+body{margin:0;font-size:14px}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+
+<div class="wrap" id="root"></div>
+<div id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+'use strict';
+/* native append would print arrays and false as text; flatten and skip empties instead */
+{const _a=Element.prototype.append;Element.prototype.append=function(...x){_a.apply(this,x.flat(Infinity).filter(v=>v!=null&&v!==false));};}
+const DAY=864e5;
+let heroTimer=null;
+
+/* ------------------------------------------------------------------ static reference data */
+const PROVS=[
+ {id:'GP',name:'Gauteng',hue:215},{id:'WC',name:'Western Cape',hue:15},{id:'NC',name:'Northern Cape',hue:42},
+ {id:'EC',name:'Eastern Cape',hue:140},{id:'FS',name:'Free State',hue:95},{id:'KZN',name:'KwaZulu-Natal',hue:178},
+ {id:'NW',name:'North West',hue:275},{id:'LP',name:'Limpopo',hue:330},{id:'MP',name:'Mpumalanga',hue:62}];
+const PROV=Object.fromEntries(PROVS.map(p=>[p.id,p]));
+const M=(id,name,prov,type,lat,lon,towns,wards)=>({id,name,prov,type,lat,lon,towns,wards:wards||null});
+const MUNIS=[
+ M('JHB','City of Johannesburg','GP','Metro',-26.2041,28.0473,'Johannesburg, Sandton, Soweto, Randburg, Roodepoort',135),
+ M('TSH','City of Tshwane','GP','Metro',-25.7479,28.2293,'Pretoria, Centurion, Soshanguve, Mamelodi',107),
+ M('EKU','City of Ekurhuleni','GP','Metro',-26.20,28.30,'Germiston, Benoni, Boksburg, Kempton Park, Springs',112),
+ M('EMF','Emfuleni','GP','Local',-26.6731,27.9261,'Vereeniging, Vanderbijlpark, Sebokeng'),
+ M('MOG','Mogale City','GP','Local',-26.10,27.77,'Krugersdorp, Magaliesburg'),
+ M('MDV','Midvaal','GP','Local',-26.55,28.02,'Meyerton, Henley on Klip'),
+ M('LES','Lesedi','GP','Local',-26.35,28.35,'Heidelberg, Ratanda'),
+ M('MER','Merafong City','GP','Local',-26.36,27.40,'Carletonville, Fochville'),
+ M('RWC','Rand West City','GP','Local',-26.18,27.70,'Randfontein, Westonaria'),
+ M('CPT','City of Cape Town','WC','Metro',-33.9249,18.4241,'Cape Town, Khayelitsha, Mitchells Plain, Bellville',116),
+ M('STB','Stellenbosch','WC','Local',-33.9321,18.8602,'Stellenbosch, Franschhoek'),
+ M('DRK','Drakenstein','WC','Local',-33.7270,18.9620,'Paarl, Wellington'),
+ M('GEO','George','WC','Local',-33.9630,22.4617,'George, Wilderness'),
+ M('MSB','Mossel Bay','WC','Local',-34.1831,22.1460,'Mossel Bay, KwaNonqaba'),
+ M('OVS','Overstrand','WC','Local',-34.4187,19.2345,'Hermanus, Gansbaai, Kleinmond'),
+ M('SLD','Saldanha Bay','WC','Local',-33.0117,17.9442,'Vredenburg, Saldanha, Langebaan'),
+ M('BRV','Breede Valley','WC','Local',-33.6460,19.4480,'Worcester, De Doorns'),
+ M('KNY','Knysna','WC','Local',-34.0363,23.0471,'Knysna, Sedgefield'),
+ M('SWA','Swartland','WC','Local',-33.4600,18.7300,'Malmesbury, Moorreesburg'),
+ M('NMB','Nelson Mandela Bay','EC','Metro',-33.9608,25.6022,'Gqeberha, Kariega, Despatch',60),
+ M('BUF','Buffalo City','EC','Metro',-33.0153,27.9116,'East London, Qonce, Mdantsane',50),
+ M('MNQ','Mnquma','EC','Local',-32.34,28.14,'Butterworth, Centane'),
+ M('KSD','King Sabata Dalindyebo','EC','Local',-31.5889,28.7844,'Mthatha, Mqanduli'),
+ M('EMG','Enoch Mgijima','EC','Local',-31.8976,26.8753,'Komani (Queenstown), Cradock'),
+ M('MKN','Makana','EC','Local',-33.31,26.53,'Makhanda (Grahamstown)'),
+ M('KOU','Kouga','EC','Local',-34.05,24.92,'Jeffreys Bay, Humansdorp'),
+ M('NDL','Ndlambe','EC','Local',-33.59,26.89,'Port Alfred, Alexandria'),
+ M('ETH','eThekwini','KZN','Metro',-29.8587,31.0218,'Durban, Umlazi, Pinetown, Chatsworth',111),
+ M('MSD','Msunduzi','KZN','Local',-29.6006,30.3794,'Pietermaritzburg, Edendale'),
+ M('NWC','Newcastle','KZN','Local',-27.7580,29.9318,'Newcastle, Madadeni'),
+ M('UMH','uMhlathuze','KZN','Local',-28.7807,32.0383,'Richards Bay, Empangeni'),
+ M('KWD','KwaDukuza','KZN','Local',-29.33,31.29,'Stanger, Ballito'),
+ M('RNK','Ray Nkonyeni','KZN','Local',-30.74,30.45,'Port Shepstone, Margate'),
+ M('ADU','Alfred Duma','KZN','Local',-28.55,29.78,'Ladysmith, Estcourt'),
+ M('MAN','Mangaung','FS','Metro',-29.0852,26.1596,'Bloemfontein, Botshabelo, Thaba Nchu',50),
+ M('MAT','Matjhabeng','FS','Local',-27.9770,26.7350,'Welkom, Virginia'),
+ M('MPH','Maluti-a-Phofung','FS','Local',-28.45,28.82,'Phuthaditjhaba, Harrismith'),
+ M('MOQ','Moqhaka','FS','Local',-27.65,27.23,'Kroonstad, Viljoenskroon'),
+ M('MTS','Metsimaholo','FS','Local',-26.82,27.84,'Sasolburg, Deneysville'),
+ M('DIH','Dihlabeng','FS','Local',-28.23,28.31,'Bethlehem, Clarens'),
+ M('RUS','Rustenburg','NW','Local',-25.6676,27.2421,'Rustenburg, Marikana'),
+ M('MAD','Madibeng','NW','Local',-25.634,27.78,'Brits, Hartbeespoort'),
+ M('JBM','JB Marks','NW','Local',-26.7145,27.097,'Potchefstroom, Ventersdorp'),
+ M('MAH','Mahikeng','NW','Local',-25.856,25.6403,'Mahikeng, Mmabatho'),
+ M('MTL','City of Matlosana','NW','Local',-26.87,26.66,'Klerksdorp, Orkney, Stilfontein'),
+ M('MKO','Moses Kotane','NW','Local',-25.36,26.99,'Mogwase, Moruleng'),
+ M('MBO','City of Mbombela','MP','Local',-25.4753,30.9694,'Mbombela (Nelspruit), KaNyamazane'),
+ M('EMA','Emalahleni','MP','Local',-25.873,29.233,'Emalahleni (Witbank), Ogies'),
+ M('SBT','Steve Tshwete','MP','Local',-25.775,29.465,'Middelburg, Hendrina'),
+ M('GVM','Govan Mbeki','MP','Local',-26.55,29.17,'Secunda, Bethal, Leandra'),
+ M('MSK','Msukaligwa','MP','Local',-26.55,29.98,'Ermelo, Breyten'),
+ M('BSH','Bushbuckridge','MP','Local',-24.83,31.03,'Bushbuckridge, Acornhoek'),
+ M('NKZ','Nkomazi','MP','Local',-25.46,31.52,'Malalane, Komatipoort'),
+ M('POL','Polokwane','LP','Local',-23.9045,29.4689,'Polokwane, Seshego'),
+ M('THU','Thulamela','LP','Local',-22.9456,30.485,'Thohoyandou, Malamulele'),
+ M('MKH','Makhado','LP','Local',-23.0434,29.905,'Makhado (Louis Trichardt)'),
+ M('MSN','Musina','LP','Local',-22.34,30.04,'Musina, Mapungubwe'),
+ M('TZN','Greater Tzaneen','LP','Local',-23.833,30.16,'Tzaneen, Nkowankowa'),
+ M('MGK','Mogalakwena','LP','Local',-24.19,29.01,'Mokopane, Mahwelereng'),
+ M('LEP','Lephalale','LP','Local',-23.68,27.74,'Lephalale, Marapong'),
+ M('GGY','Greater Giyani','LP','Local',-23.31,30.71,'Giyani, Hlanganani'),
+ M('SOL','Sol Plaatje','NC','Local',-28.7282,24.7499,'Kimberley, Ritchie'),
+ M('DKR','Dawid Kruiper','NC','Local',-28.4478,21.2561,'Upington, Keimoes'),
+ M('EMT','Emthanjeni','NC','Local',-30.65,24.01,'De Aar, Britstown'),
+ M('NKH','Nama Khoi','NC','Local',-29.66,17.88,'Springbok, Okiep'),
+ M('GAM','Gamagara','NC','Local',-27.7,23.05,'Kathu, Sishen, Olifantshoek')];
+const MUNI=Object.fromEntries(MUNIS.map(m=>[m.id,m]));
+
+const CATS=[
+ {id:'pothole',label:'Pothole or damaged road',sla:14,dept:'Roads and stormwater'},
+ {id:'power',label:'Power outage or blown transformer',sla:2,dept:'Electricity'},
+ {id:'water',label:'Water leak or no water',sla:2,dept:'Water and sanitation'},
+ {id:'sewer',label:'Sewage overflow or blocked drain',sla:3,dept:'Water and sanitation'},
+ {id:'refuse',label:'Refuse, dumping or area cleaning',sla:5,dept:'Waste management'},
+ {id:'light',label:'Street light not working',sla:7,dept:'Electricity'},
+ {id:'signal',label:'Traffic light or road sign',sla:5,dept:'Roads and transport'},
+ {id:'grass',label:'Overgrown grass or park upkeep',sla:14,dept:'Parks and recreation'},
+ {id:'other',label:'Other service delivery need',sla:14,dept:'Municipal services'}];
+const CAT=Object.fromEntries(CATS.map(c=>[c.id,c]));
+const ST={reported:{label:'Reported',cls:'rep'},ack:{label:'Acknowledged',cls:'ack'},progress:{label:'In progress',cls:'prog'},resolved:{label:'Resolved',cls:'done'}};
+const ST_ORDER=['reported','ack','progress','resolved'];
+const PARTIES={ANC:145,DA:215,EFF:355,IFP:28,MK:100,PA:170,ActionSA:262,'FF Plus':40,ACDP:300,Independent:0,Other:0};
+const ESCALATE=['Ward councillor','Municipal manager','Provincial Cooperative Governance department','Public Protector','Presidential Hotline: 17737'];
+
+/* ------------------------------------------------------------------ state */
+const S={route:{view:'feed'},reports:[],updates:[],comments:[],confirms:[],verdicts:[],people:[],munis:[],
+ loaded:{},db:null,dbState:'init',slow:false,err:null,me:{id:null,canEdit:false,canWrite:null},
+ hideDemo:false,filters:{q:'',mun:'',status:'',cat:'',sort:'new',overdue:false},rank:{sort:'overdue'},
+ draft:null,paint:null,ward:{}};
+const blankDraft=()=>({photo:null,photoName:'',lat:null,lon:null,locSource:'',cat:'',title:'',desc:'',prov:(S.profile&&S.profile.prov)||'',mun:(S.profile&&S.profile.mun)||'',ward:(S.profile&&S.profile.ward)?String(S.profile.ward):'',area:'',nearest:null});
+S.draft=blankDraft();
+
+/* ------------------------------------------------------------------ helpers */
+const h=(tag,a,...kids)=>{const e=document.createElement(tag);
+ if(a)for(const k in a){const v=a[k];if(v==null||v===false||k==='value')continue;
+  if(k==='class')e.className=v;else if(k==='text')e.textContent=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?'':v);}
+ for(const c of kids.flat(Infinity)){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(String(c)));}
+ if(a&&a.value!=null)e.value=a.value;return e;};
+const $=(sel,el)=>(el||document).querySelector(sel);
+const clear=el=>{while(el.firstChild)el.removeChild(el.firstChild);return el;};
+const fmtDate=ms=>new Date(ms).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'});
+const fmtDT=ms=>fmtDate(ms)+', '+new Date(ms).toLocaleTimeString('en-ZA',{hour:'2-digit',minute:'2-digit'});
+function ago(ms){const d=Date.now()-ms;if(d<6e4)return 'just now';if(d<36e5)return Math.floor(d/6e4)+' min ago';if(d<DAY)return Math.floor(d/36e5)+' h ago';const n=Math.floor(d/DAY);return n+(n===1?' day ago':' days ago');}
+const dur=ms=>{const d=ms/DAY;return d<1?Math.max(1,Math.round(d*24))+' h':(d<10?d.toFixed(1):Math.round(d))+' d';};
+const median=a=>{if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;};
+let toastT;function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{e.hidden=true},3600);}
+function go(hash){if(location.hash==='#'+hash)render();else location.hash=hash;}
+async function copyText(text,btn,after){
+ try{await navigator.clipboard.writeText(text);toast('Copied');}
+ catch(e){const box=h('textarea',{readonly:true,'aria-label':'Text to copy',rows:6,value:text});btn.after(box);box.focus();box.select();toast('Press copy on the selected text');}
+ if(after)after();}
+function haversine(a,b,c,d){const R=6371,r=x=>x*Math.PI/180,dl=r(c-a),dn=r(d-b);const q=Math.sin(dl/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(q));}
+/* metros cover far more ground than local municipalities, so weight distance by a typical radius */
+function nearestMuni(lat,lon){let best=null;for(const m of MUNIS){const d=haversine(lat,lon,m.lat,m.lon),w=d/(m.type==='Metro'?28:12);if(!best||w<best.w)best={m,d,w};}return best;}
+const inSA=(lat,lon)=>lat<=-22&&lat>=-35.2&&lon>=16.2&&lon<=33.4;
+function parseCoords(t){t=String(t||'');let m=t.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||t.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)||t.match(/(-?\d{1,2}\.\d{3,})\s*[, ;]\s*(-?\d{1,3}\.\d{3,})/);
+ if(!m)return null;const lat=+m[1],lon=+m[2];return inSA(lat,lon)?{lat,lon}:null;}
+const emailOk=e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e||'');
+const initials=n=>(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+const groupBy=(arr,k)=>{const o={};for(const x of arr)(o[x[k]]||(o[x[k]]=[])).push(x);return o;};
+
+/* EXIF GPS reader for JPEG photos */
+function readExifGps(buf){try{const v=new DataView(buf);if(v.getUint16(0)!==0xFFD8)return null;let off=2;
+ while(off<v.byteLength-4){const mk=v.getUint16(off);off+=2;if(mk===0xFFE1){const len=v.getUint16(off);if(v.getUint32(off+2)===0x45786966)return tiffGps(v,off+8);off+=len;}
+  else if((mk&0xFF00)!==0xFF00||mk===0xFFDA)break;else off+=v.getUint16(off);}}catch(e){}return null;}
+function tiffGps(v,s){const le=v.getUint16(s)===0x4949,u16=o=>v.getUint16(o,le),u32=o=>v.getUint32(o,le);
+ const ifd=s+u32(s+4),n=u16(ifd);let gps=null;for(let i=0;i<n;i++){const e=ifd+2+i*12;if(u16(e)===0x8825)gps=s+u32(e+8);}
+ if(gps==null)return null;const g={},gn=u16(gps);
+ for(let i=0;i<gn;i++){const e=gps+2+i*12,tag=u16(e);
+  if(tag===1||tag===3)g[tag]=String.fromCharCode(v.getUint8(e+8));
+  if(tag===2||tag===4){const o=s+u32(e+8),r=k=>u32(o+k*8)/(u32(o+k*8+4)||1);g[tag]=r(0)+r(1)/60+r(2)/3600;}}
+ if(g[2]==null||g[4]==null)return null;const lat=g[2]*(g[1]==='S'?-1:1),lon=g[4]*(g[3]==='W'?-1:1);
+ return(isFinite(lat)&&isFinite(lon)&&(lat||lon))?{lat,lon}:null;}
+function loadImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i);};i.onerror=()=>rej(new Error('image'));i.src=u;});}
+async function compress(file,max,q){const img=await loadImg(file);let out='';
+ for(const [m,qq] of [[max,q],[Math.round(max*.8),q-.1],[Math.round(max*.6),q-.2]]){
+  const sc=Math.min(1,m/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement('canvas');
+  c.width=Math.max(1,Math.round(img.naturalWidth*sc));c.height=Math.max(1,Math.round(img.naturalHeight*sc));
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);out=c.toDataURL('image/jpeg',qq);if(out.length<190000)break;}
+ return out;}
+
+/* ------------------------------------------------------------------ derived data */
+function derive(){
+ const now=Date.now(),U=groupBy(S.updates,'reportId'),C=groupBy(S.comments,'reportId'),F=groupBy(S.confirms,'reportId'),V=groupBy(S.verdicts,'reportId');
+ const all=S.reports.map(r=>{
+  const cat=CAT[r.cat]||CAT.other,mun=MUNI[r.munId]||null,ups=(U[r._id]||[]).slice().sort((a,b)=>a.at-b.at),last=ups[ups.length-1];
+  const status=last?last.status:'reported',due=r.createdAt+cat.sla*DAY,done=status==='resolved';
+  const vs=V[r._id]||[],fixed=vs.filter(x=>x.v==='fixed').length,notfixed=vs.filter(x=>x.v==='notfixed').length;
+  return {...r,cat,catId:r.cat,mun,ups,status,due,done,overdue:!done&&now>due,resolvedAt:done?last.at:null,
+   closeMs:done?last.at-r.createdAt:null,late:done&&last.at>due,age:now-r.createdAt,
+   coms:(C[r._id]||[]).slice().sort((a,b)=>a.at-b.at),affected:(F[r._id]||[]),vs,fixed,notfixed,disputed:done&&notfixed>fixed};});
+ const byId=new Map(all.map(r=>[r._id,r]));
+ return {all,byId,rows:all.filter(r=>!(S.hideDemo&&r.demo)),demoCount:all.filter(r=>r.demo).length};}
+function statsFor(rows){const res=rows.filter(r=>r.done),closes=res.map(r=>r.closeMs);
+ return {total:rows.length,open:rows.length-res.length,resolved:res.length,overdue:rows.filter(r=>r.overdue).length,med:median(closes),
+  rate:rows.length?res.length/rows.length:0,disputed:rows.filter(r=>r.disputed).length};}
+const wardLabel=r=>(r.ward?'Ward '+r.ward+' · ':'')+(r.mun?r.mun.name:'Unknown municipality');
+
+/* ------------------------------------------------------------------ data layer */
+function refresh(){
+ if(S.paint&&S.route.view==='feed'){S.paint();return;}
+ const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&$('#root').contains(a))return;
+ render();}
+async function put(fn,okMsg){try{await fn();if(okMsg)toast(okMsg);return true;}catch(e){toast(e&&e.code==='quota_exceeded'?'Storage is full. Ask the owner to clear old reports.':'Could not save. '+((e&&e.message)||''));return false;}}
+async function initData(){
+ const c=window.claude;if(!c||!c.use){S.dbState='none';return;}
+ try{const [db,user]=await Promise.all([c.use('db'),c.use('user')]);S.db=db;
+  if(user){S.me.id=await user.id();S.me.canEdit=await user.canEdit();S.me.canWrite=await user.can('data.write');}
+  if(!db){S.dbState='none';render();return;}
+  restoreAcct();
+  S.dbState='loading';const slowT=setTimeout(()=>{S.slow=true;render();},10000);
+  const names=['reports','updates','comments','confirms','verdicts','people','munis'];
+  for(const n of names){const q=db.collection(n);
+   q.onSnapshot(s=>{S[n]=s.docs.map(d=>({_id:d.id,...d.data()}));S.loaded[n]=true;
+    if(names.every(k=>S.loaded[k])){clearTimeout(slowT);S.slow=false;S.dbState='ready';}refresh();},
+    e=>{S.err=e&&e.code||'error';S.dbState='error';refresh();});}
+ }catch(e){S.dbState='none';render();}}
+const canPost=()=>S.dbState==='ready'&&S.me.canWrite!==false&&!!S.db;
+const muniInfo=id=>S.munis.find(m=>m._id===id)||{};
+
+/* ------------------------------------------------------------------ routing */
+function parseHash(){const t=(location.hash||'').slice(1);if(!t)return{view:'feed'};
+ if(['feed','new','explore','ranking','facts'].includes(t))return{view:t};let m;
+ if((m=t.match(/^r-([A-Za-z0-9]+)$/)))return{view:'report',id:m[1]};
+ if((m=t.match(/^p-([A-Z]{2,3})$/))&&PROV[m[1]])return{view:'explore',prov:m[1]};
+ if((m=t.match(/^m-([A-Z]{3})$/))&&MUNI[m[1]])return{view:'explore',mun:m[1]};
+ if((m=t.match(/^w-([A-Z]{3})-(\d{1,3})$/))&&MUNI[m[1]])return{view:'explore',mun:m[1],ward:+m[2]};
+ return{view:'feed'};}
+window.addEventListener('hashchange',()=>{S.route=parseHash();S.paint=null;render();window.scrollTo(0,0);});
+
+/* ------------------------------------------------------------------ your area (cookie) */
+const KM=30,PCOOKIE='fmw_profile';
+function readCookie(n){try{const m=document.cookie.split('; ').find(c=>c.startsWith(n+'='));return m?decodeURIComponent(m.slice(n.length+1)):null;}catch(e){return null;}}
+function writeCookie(n,v,days){try{document.cookie=n+'='+encodeURIComponent(v)+'; Max-Age='+Math.round(days*86400)+'; Path=/; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'');}catch(e){}}
+function cookieWorks(){try{writeCookie('fmw_t','1',1);const ok=readCookie('fmw_t')==='1';writeCookie('fmw_t','',0);return ok;}catch(e){return false;}}
+function loadProfile(){let raw=readCookie(PCOOKIE);if(!raw)try{raw=localStorage.getItem(PCOOKIE);}catch(e){}
+ try{const p=raw&&JSON.parse(raw);if(p&&(p.acct||MUNI[p.mun]))return p;}catch(e){}return null;}
+function saveProfile(p,noPush){S.profile=p;
+ if(p){const raw=JSON.stringify(p);writeCookie(PCOOKIE,raw,365);try{localStorage.setItem(PCOOKIE,raw);}catch(e){}if(p.acct){remember(p);if(!noPush)pushAcct(p);}}
+ else{writeCookie(PCOOKIE,'',0);try{localStorage.removeItem(PCOOKIE);}catch(e){}}}
+const acct=()=>!!(S.profile&&S.profile.acct);
+function lastKnown(){try{return JSON.parse(localStorage.getItem('fmw_last')||'null');}catch(e){return null;}}
+function remember(p){try{localStorage.setItem('fmw_last',JSON.stringify(p));}catch(e){}}
+function dbDoc(){return(S.db&&S.me.id)?S.db.doc('data/users/'+S.me.id+'/profile'):null;}
+async function pushAcct(p){try{const d=dbDoc();if(d)await d.set(p);}catch(e){}}
+async function pullAcct(){try{const d=dbDoc();if(!d)return null;const x=await d.get();return x.exists?x.data():null;}catch(e){return null;}}
+async function restoreAcct(){
+ let out=false;try{out=localStorage.getItem('fmw_out')==='1';}catch(e){}
+ const r=await pullAcct();
+ if(acct()){if(!r)pushAcct(S.profile);return;}
+ if(r&&r.acct&&!out){S.profile=r;saveProfile(r,true);S.scope=r.scope||'all';S.draft=blankDraft();const m=document.getElementById('profmodal');if(m)m.remove();render();toast('Welcome back'+(r.name?', '+r.name:''));}}
+function signOut(){const p=S.profile;if(p&&p.acct)remember(p);try{localStorage.setItem('fmw_out','1');}catch(e){}saveProfile(null);S.scope='all';S.draft=blankDraft();}
+function acctBtn(){const p=S.profile;
+ if(p&&p.acct)return h('button',{class:'navbtn',type:'button',onclick:()=>openProfile('area')},'Hi, '+(p.name||'there')+(p.mun?' · '+MUNI[p.mun].name:''));
+ return h('button',{class:'navbtn',type:'button',onclick:()=>openProfile('account')},'Sign up / Sign in');}
+function detectHere(status,onFix){
+ if(!navigator.geolocation){status.textContent='This browser cannot detect your location. Enter your area below.';return;}
+ status.textContent='Waiting for your permission…';let done=false;
+ const blocked='Location is blocked for this page, so it cannot be detected here. Enter your area below or paste a Google Maps pin.';
+ const t=setTimeout(()=>{if(!done){done=true;status.textContent='No answer from your device. Enter your area below instead.';}},15000);
+ try{navigator.geolocation.getCurrentPosition(pos=>{if(done)return;done=true;clearTimeout(t);onFix(pos.coords.latitude,pos.coords.longitude);},
+  e=>{if(done)return;done=true;clearTimeout(t);status.textContent=e&&e.code===1?blocked:'Could not get a location fix. Enter your area below.';},{enableHighAccuracy:false,timeout:12000,maximumAge:600000});}
+ catch(e){done=true;clearTimeout(t);status.textContent=blocked;}}
+function homePoint(p){if(p.lat!=null&&p.lon!=null)return{lat:+p.lat,lon:+p.lon};const m=MUNI[p.mun];return{lat:m.lat,lon:m.lon};}
+function nearbyMunis(p,km){const hp=homePoint(p);return MUNIS.map(m=>({m,d:haversine(hp.lat,hp.lon,m.lat,m.lon)})).filter(x=>x.m.id===p.mun||x.d<=km).sort((a,b)=>a.d-b.d);}
+function reportPoint(r){if(r.lat!=null&&r.lon!=null)return{lat:+r.lat,lon:+r.lon};return r.mun?{lat:r.mun.lat,lon:r.mun.lon}:null;}
+function scopeRows(rows){const p=S.profile;if(!p||!p.mun||S.scope==='all')return rows;
+ if(S.scope==='mun')return rows.filter(r=>r.munId===p.mun);
+ const hp=homePoint(p);return rows.filter(r=>{if(r.munId===p.mun&&r.lat==null)return true;const q=reportPoint(r);return q&&haversine(hp.lat,hp.lon,q.lat,q.lon)<=KM;});}
+function persistScope(){if(S.profile){S.profile.scope=S.scope;saveProfile(S.profile);}}
+function paintScope(box,base,all,repaint){
+ clear(box);const p=S.profile&&S.profile.mun?S.profile:null,m=p?MUNI[p.mun]:null;
+ const btn=(k,label)=>{const on=S.scope===k&&(k==='all'||!!p);return h('button',{type:'button',class:'tab','aria-pressed':String(on),'aria-selected':String(on),onclick:()=>{if(k!=='all'&&!p){openProfile();return;}S.scope=k;persistScope();repaint();}},label);};
+ let note;
+ if(!p)note=h('span',{class:'small muted'},'Set your area to see reports in your municipality and within '+KM+' km. ',h('button',{class:'btn sm',type:'button',onclick:openProfile},'Set my area'));
+ else if(S.scope==='near'){const near=nearbyMunis(p,KM);note=h('span',{class:'small muted'},base.length+' of '+all.length+' reports are within '+KM+' km of '+(p.lat!=null?'your pin':m.name+' centre')+'. Areas in range: '+near.map(x=>x.m.name).join(', ')+'.');}
+ else if(S.scope==='mun')note=h('span',{class:'small muted'},base.length+' of '+all.length+' reports are in '+m.name+'.');
+ else note=h('span',{class:'small muted'},'Showing every report in the country.');
+ box.append(h('div',{class:'card flat stack',style:'gap:8px'},h('div',{class:'row'},h('b',null,'Show reports for'),h('div',{class:'tabs'},btn('all','All South Africa'),btn('mun',m?m.name:'My municipality'),btn('near','Within '+KM+' km of me'))),note));}
+function findAreas(q){q=q.toLowerCase();const out=[];
+ for(const m of MUNIS){if(m.name.toLowerCase().includes(q))out.push({t:m.name,s:m.type+' · '+PROV[m.prov].name,m});
+  else{const hit=m.towns.split(', ').find(t=>t.toLowerCase().includes(q));if(hit)out.push({t:hit,s:'in '+m.name+' · '+PROV[m.prov].name,m});}}
+ return out.slice(0,6);}
+function areaBtn(){const p=S.profile;return h('button',{class:'btn sm areabtn',type:'button',onclick:openProfile},p?'Your area: '+(p.name?p.name+' · ':'')+MUNI[p.mun].name:'Set your area');}
+function openProfile(arg){
+ if(document.getElementById('profmodal'))return;
+ let step=typeof arg==='string'?arg:'area',tab='up';const prev=document.activeElement;
+ const ov=h('div',{id:'profmodal',class:'ovl'}),dlg=h('div',{class:'dlg',role:'dialog','aria-modal':'true','aria-labelledby':'pm-t'});
+ const close=()=>{ov.remove();try{prev&&prev.focus&&prev.focus();}catch(e){}};
+ const note=t=>h('p',{class:'small muted',style:'margin:0'},t);
+ const err=h('div',{class:'notice bad',hidden:true,role:'alert'}),fail=t=>{err.textContent=t;err.hidden=false;};
+ function accountView(){
+  err.hidden=true;
+  const tabs=h('div',{class:'tabs',role:'tablist','aria-label':'Account'},[['up','Sign up'],['in','Sign in']].map(a=>h('button',{type:'button',class:'tab',role:'tab','aria-selected':String(tab===a[0]),onclick:()=>{tab=a[0];paint();}},a[1])));
+  const email=h('input',{type:'email',id:'pf-email',autocomplete:'email',placeholder:'you@example.com'});let form;
+  if(tab==='up'){
+   const name=h('input',{type:'text',id:'pf-name',maxlength:40,autocomplete:'given-name',placeholder:'First name'});
+   form=h('form',{class:'stack',novalidate:true,onsubmit:e=>{e.preventDefault();const em=email.value.trim(),nm=name.value.trim();
+     if(!nm){fail('Enter your first name.');return;}if(!emailOk(em)){fail('Enter a valid email address.');return;}
+     const pr=Object.assign({},S.profile||{},{acct:true,name:nm.slice(0,40),email:em,at:Date.now()});
+     try{localStorage.removeItem('fmw_out');}catch(x){}saveProfile(pr);step='area';paint();toast('Account created');}},
+    h('label',{class:'f'},'First name',name),h('label',{class:'f'},'Email',email),err,h('button',{class:'btn primary',type:'submit'},'Create account'));
+  }else{
+   form=h('form',{class:'stack',novalidate:true,onsubmit:async e=>{e.preventDefault();const em=email.value.trim().toLowerCase();if(!emailOk(em)){fail('Enter the email you signed up with.');return;}
+     const hit=[await pullAcct(),lastKnown(),S.profile].find(x=>x&&x.acct&&String(x.email||'').toLowerCase()===em);
+     if(!hit){fail('No account with that email was found on this device or your Claude account. Try signing up instead.');return;}
+     try{localStorage.removeItem('fmw_out');}catch(x){}saveProfile(hit);S.scope=hit.scope||'all';S.draft=blankDraft();close();render();toast('Welcome back'+(hit.name?', '+hit.name:''));}},
+    h('label',{class:'f'},'Email you signed up with',email),err,h('button',{class:'btn primary',type:'submit'},'Sign in'));}
+  return [h('div',null,h('div',{class:'eyebrow'},'Welcome to Fix My Ward'),h('h2',{id:'pm-t'},tab==='up'?'Create your account':'Welcome back')),tabs,form,
+   note('Your details are saved in a cookie on this device, and if you are signed in to Claude they also sync privately to your other devices. There are no passwords, so do not use this to protect anything sensitive.'),
+   h('div',{class:'row'},h('button',{class:'btn sm',type:'button',onclick:()=>{step='area';paint();}},'Just set my area'),h('button',{class:'btn sm',type:'button',onclick:close},'Not now'))];}
+ function areaView(){
+  err.hidden=true;const cur=S.profile||{},d={prov:cur.prov||'',mun:cur.mun||''};let la=cur.lat!=null?+cur.lat:null,lo=cur.lon!=null?+cur.lon:null;
+  const provSel=h('select',{id:'pf-prov'}),munSel=h('select',{id:'pf-mun'}),status=h('div',{class:'small',role:'status','aria-live':'polite'}),
+   ward=h('input',{type:'number',id:'pf-ward',min:1,max:150,value:cur.ward?String(cur.ward):'',placeholder:'Optional'}),
+   pin=h('input',{type:'text',id:'pf-pin',placeholder:'Google Maps link or coordinates (optional)',value:la!=null?la.toFixed(5)+', '+lo.toFixed(5):''});
+  const fillProv=()=>{clear(provSel).append(h('option',{value:''},'Choose province'),PROVS.map(x=>h('option',{value:x.id},x.name)));provSel.value=d.prov;};
+  const fillMun=()=>{clear(munSel).append(h('option',{value:''},d.prov?'Choose municipality':'Choose a province first'),MUNIS.filter(x=>x.prov===d.prov).map(x=>h('option',{value:x.id},x.name)));munSel.value=d.mun;};
+  provSel.addEventListener('change',()=>{d.prov=provSel.value;d.mun='';fillMun();});munSel.addEventListener('change',()=>{d.mun=munSel.value;});fillProv();fillMun();
+  const detect=h('button',{class:'btn primary',type:'button',onclick:()=>detectHere(status,(lat,lon)=>{
+   if(!inSA(lat,lon)){status.textContent='That location is outside South Africa. Enter your area below.';return;}
+   la=lat;lo=lon;const n=nearestMuni(lat,lon);d.mun=n.m.id;d.prov=n.m.prov;fillProv();fillMun();pin.value=lat.toFixed(5)+', '+lon.toFixed(5);
+   clear(status).append('Found you near ',h('b',null,n.m.name),' in '+PROV[n.m.prov].name+'. ',h('a',{href:'https://www.google.com/maps?q='+lat.toFixed(6)+','+lon.toFixed(6),target:'_blank',rel:'noopener'},'Check on Google Maps'),'. We match the nearest municipality centre, so check it and add your ward number if you know it. Street addresses are not looked up.');})},'Detect my location');
+  const form=h('form',{class:'stack',novalidate:true,onsubmit:e=>{e.preventDefault();
+   const pc=pin.value.trim();let a=null,b=null;
+   if(pc){const c=parseCoords(pc);if(!c){fail('That pin was not recognised. Paste a Google Maps link that contains coordinates, or clear the box.');return;}a=c.lat;b=c.lon;if(!d.mun){const n=nearestMuni(a,b);d.mun=n.m.id;d.prov=n.m.prov;}}
+   if(!d.mun){fail('Choose your municipality or use Detect my location.');return;}
+   const first=!(S.profile&&S.profile.mun),w=parseInt(ward.value,10);
+   const pr=Object.assign({},S.profile||{},{prov:d.prov||MUNI[d.mun].prov,mun:d.mun,ward:w>0?w:null,lat:a,lon:b,scope:first?'near':(S.scope||'all'),at:Date.now()});
+   const ck=cookieWorks();saveProfile(pr);S.scope=pr.scope;S.draft=blankDraft();close();render();
+   toast(ck?'Saved. Showing reports near '+MUNI[pr.mun].name:'Saved for this visit. Your browser blocks cookies, so it may not be remembered.');}},
+   h('details',{open:true},h('summary',{style:'cursor:pointer;font-weight:600;margin-bottom:10px'},'Or enter it yourself'),
+    h('div',{class:'stack'},h('div',{class:'two'},h('label',{class:'f'},'Province',provSel),h('label',{class:'f'},'Municipality',munSel)),
+     h('div',{class:'two'},h('label',{class:'f'},'Ward number',ward),h('label',{class:'f'},'Home pin',pin)),
+     h('span',{class:'small muted'},'A home pin makes the 30 km radius exact. Without one we measure from the municipality centre.'))),
+   err,h('div',{class:'row'},h('button',{class:'btn primary',type:'submit'},'Save my area'),h('button',{class:'btn',type:'button',onclick:close},cur.mun?'Cancel':'Skip for now')));
+  const foot=h('div',{class:'row small'},
+   acct()?[h('button',{class:'btn sm',type:'button',onclick:()=>{signOut();close();render();toast('Signed out. Sign in again with your email.');}},'Sign out'),
+    h('button',{class:'btn sm danger',type:'button',onclick:async()=>{try{const x=dbDoc();if(x)await x.delete();}catch(e){}try{localStorage.removeItem('fmw_last');localStorage.removeItem('fmw_out');}catch(e){}saveProfile(null);S.scope='all';S.draft=blankDraft();close();render();toast('Your saved details were removed');}},'Delete my details')]
+   :h('button',{class:'btn sm',type:'button',onclick:()=>{step='account';paint();}},'Create an account to keep these details on every device'));
+  return [h('div',null,h('div',{class:'eyebrow'},acct()?'Signed in as '+(S.profile.name||'you')+' · '+S.profile.email:'Welcome to Fix My Ward'),h('h2',{id:'pm-t'},'Where do you stay?')),
+   h('div',{class:'stack',style:'gap:8px'},detect,status,note('Your browser will ask permission. Your location is used only on this device to find your municipality.')),form,foot];}
+ function paint(){clear(dlg).append(step==='account'?accountView():areaView());}
+ paint();ov.append(dlg);ov.addEventListener('keydown',e=>{if(e.key==='Escape')close();});ov.addEventListener('mousedown',e=>{if(e.target===ov)close();});
+ document.body.append(ov);setTimeout(()=>{const f=dlg.querySelector('input,button.btn');if(f)f.focus();},30);}
+
+/* ------------------------------------------------------------------ shell */
+function render(){
+ clearInterval(heroTimer);const root=clear($('#root')),D=derive(),v=S.route.view;S.paint=null;
+ root.append(header(v));
+ if(S.dbState==='none')root.append(h('div',{class:'notice warn',style:'margin-bottom:14px'},'This copy has no report database connected yet, so you can explore areas, facts and your profile, but reports cannot be posted or shared.'));
+ else if(S.dbState==='error')root.append(h('div',{class:'notice bad',style:'margin-bottom:14px'},'Reports could not be loaded ('+S.err+'). Check your access to this page and reload.'));
+ else if(S.slow&&S.dbState!=='ready')root.append(h('div',{class:'notice warn',style:'margin-bottom:14px'},'The report store is slow to answer. What you see may be out of date.'));
+ if(S.dbState==='ready'&&S.me.canWrite===false)root.append(h('div',{class:'notice',style:'margin-bottom:14px'},'You can read reports but not post. Ask the page owner for contributor access to report issues and comment.'));
+ const main=h('main',{id:'main'});root.append(main);
+ if(v==='feed')main.append(renderFeed(D));
+ else if(v==='new')main.append(renderNew(D));
+ else if(v==='report')main.append(renderReport(D));
+ else if(v==='explore')main.append(renderExplore(D));
+ else if(v==='ranking')main.append(renderRanking(D));
+ else if(v==='facts')main.append(renderFacts());
+ if(D.demoCount)root.append(h('div',{class:'notice',style:'margin-top:24px'},
+  D.demoCount+' example reports are included so you can see how the feed works. ',
+  h('button',{class:'btn sm',onclick:()=>{S.hideDemo=!S.hideDemo;render();}},S.hideDemo?'Show examples':'Hide examples')));
+}
+function header(v){
+ const link=(hash,label,on,cls)=>h('a',{href:'#'+hash,class:(on?'on ':'')+(cls||'')},label);
+ return h('header',{class:'top'},
+  h('a',{class:'brand',href:'#feed'},'Fix My Ward',h('small',null,'Report it. Track it. Hold it to account.')),
+  h('nav',{'aria-label':'Main'},link('feed','Feed',v==='feed'||v==='report'),link('explore','Explore areas',v==='explore'),link('ranking','Accountability',v==='ranking'),link('facts','Fun facts',v==='facts'),link('new','Report an issue',v==='new','cta'),acctBtn()));}
+
+/* ------------------------------------------------------------------ shared pieces */
+const statusPill=r=>h('span',{class:'pill '+ST[r.status].cls},ST[r.status].label);
+function slaBadge(r){
+ if(r.done)return h('span',{class:'pill '+(r.late?'late':'ok')},(r.late?'Closed late in ':'Closed in ')+dur(r.closeMs));
+ if(r.overdue)return h('span',{class:'pill late'},'Overdue by '+dur(Date.now()-r.due));
+ return h('span',{class:'pill neutral'},'Due in '+dur(r.due-Date.now()));}
+function postCard(r){
+ return h('article',{class:'post'},picBox(r),
+  h('div',{class:'head'},statusPill(r),slaBadge(r),r.disputed&&h('span',{class:'pill late'},'Disputed by residents'),r.demo&&h('span',{class:'demo-tag'},'Example')),
+  null,
+  h('div',null,h('h3',null,h('a',{href:'#r-'+r._id},r.title||r.cat.label)),
+   h('div',{class:'meta'},r.cat.label+' · '+wardLabel(r)+(r.area?' · '+r.area:''))),
+  h('div',{class:'foot'},h('span',{class:'mono'},r.ref),h('span',null,'Reported '+ago(r.createdAt)),
+   h('span',null,r.affected.length+(r.affected.length===1?' resident affected':' residents affected')),
+   h('span',null,r.coms.length+(r.coms.length===1?' comment':' comments'))));}
+function summaryStats(rows,cls){const s=statsFor(rows);
+ return h('div',{class:'stats'},
+  h('div',{class:'stat'},h('b',null,s.total),h('span',null,'Reports')),
+  h('div',{class:'stat'},h('b',null,s.open),h('span',null,'Open')),
+  h('div',{class:'stat '+(s.overdue?'bad':'')},h('b',null,s.overdue),h('span',null,'Overdue')),
+  h('div',{class:'stat good'},h('b',null,s.total?Math.round(s.rate*100)+'%':'–'),h('span',null,'Resolved')),
+  h('div',{class:'stat'},h('b',null,s.med==null?'–':dur(s.med)),h('span',null,'Median time to close')));}
+function mailFor(r,email){
+ const link=location.href.split('#')[0]+'#r-'+r._id;
+ const subject=`Service delivery request ${r.ref}: ${r.cat.label}, ${r.ward?'Ward '+r.ward+', ':''}${r.mun?r.mun.name:''}`;
+ const body=[`To the ward councillor and ${r.mun?r.mun.name:'municipal'} ${r.cat.dept} department,`,'',
+  `A resident has reported a service delivery issue.`,'',`Reference: ${r.ref}`,`Issue: ${r.cat.label}`,`Details: ${r.desc||r.title}`,
+  `Ward: ${r.ward||'not stated'} (${r.mun?r.mun.name:''})`,r.area?`Area: ${r.area}`:null,
+  r.lat!=null?`Location: https://www.google.com/maps?q=${(+r.lat).toFixed(6)},${(+r.lon).toFixed(6)}`:null,
+  `Reported: ${fmtDT(r.createdAt)}`,`Target response: ${r.cat.sla} days`,'',
+  `Public status page with photo and updates: ${link}`,'',
+  `Please acknowledge receipt and post progress updates against this reference number.`].filter(x=>x!=null).join('\n');
+ return {subject,body,href:email&&emailOk(email)?`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`:null};}
+function dispatchCard(r){
+ const info=muniInfo(r.munId),email=info.email||'';let typed=email;
+ const card=h('div',{class:'card stack'});
+ card.append(h('h3',null,'Notify the ward office'),
+  h('p',{class:'small muted',style:'margin:0'},'This page cannot send email by itself. Send it from your own email app with the message below, then mark it as sent so everyone can see the ward office was notified.'));
+ const m=()=>mailFor(r,typed);
+ const toBox=h('div');
+ if(email)toBox.append(h('div',{class:'small muted'},'Ward office email on file'),h('kbd',{class:'addr'},email));
+ else{toBox.append(h('label',{class:'f'},'Ward office email',h('span',{class:'hint'},'No address is on file for '+(r.mun?r.mun.name:'this municipality')+' yet. Paste the correct one from the municipality website.'),
+   h('input',{type:'email',id:'dest-'+r._id,placeholder:'ward.office@municipality.gov.za',value:'',oninput:e=>{typed=e.target.value.trim();upd();}})));}
+ const open=h('a',{class:'btn primary',href:'#',rel:'noopener'},'Open in email app'),cp=h('button',{class:'btn',type:'button',onclick:e=>copyText('Subject: '+m().subject+'\n\n'+m().body,e.currentTarget)},'Copy message'),
+  sent=h('button',{class:'btn',type:'button',disabled:!canPost()||!!r.emailedAt,onclick:async()=>{await put(()=>S.db.doc('reports/'+r._id).update({emailedAt:Date.now()}),'Marked as emailed');}},r.emailedAt?'Emailed '+ago(r.emailedAt):'I sent it');
+ function upd(){const x=m();if(x.href){open.href=x.href;open.removeAttribute('aria-disabled');open.style.opacity='';}else{open.href='#';open.setAttribute('aria-disabled','true');open.style.opacity='.5';}}
+ open.addEventListener('click',e=>{if(open.getAttribute('aria-disabled')==='true'){e.preventDefault();toast('Add the ward office email address first');}});
+ upd();card.append(toBox,h('div',{class:'row'},open,cp,sent),
+  h('p',{class:'small muted',style:'margin:0'},'If the email app does not open, use Copy message and paste it into a new email.'));
+ return card;}
+function personCard(p,admin){
+ const hue=PARTIES[p.party];
+ return h('div',{class:'person'},
+  p.photo?h('img',{class:'avatar',src:p.photo,alt:p.name}):h('div',{class:'avatar','aria-hidden':'true'},initials(p.name)),
+  h('div',{class:'grow'},h('b',null,p.name),h('div',{class:'small muted'},p.role),
+   h('div',{class:'row',style:'gap:10px'},p.party&&h('span',{class:'party',style:'--h:'+(hue||0)},h('i'),p.party),p.email&&h('span',{class:'small mono'},p.email))),
+  admin&&h('button',{class:'btn sm danger',onclick:()=>{put(()=>S.db.doc('people/'+p._id).delete(),'Removed');}},'Remove'));}
+function peopleBlock(scope,defaultRole,title,help){
+ const list=S.people.filter(p=>p.scope===scope).sort((a,b)=>a.at-b.at),box=h('div',{class:'card'});
+ box.append(h('h3',{style:'margin-bottom:6px'},title));
+ if(!list.length)box.append(h('p',{class:'small muted',style:'margin:0 0 8px'},help));
+ list.forEach(p=>box.append(personCard(p,S.me.canEdit&&canPost())));
+ if(S.me.canEdit&&canPost()){
+  let photo=null;
+  const f=h('form',{class:'stack',style:'margin-top:12px;padding-top:12px;border-top:1px solid var(--line)'},
+   h('b',null,'Add a profile'),
+   h('div',{class:'two'},h('label',{class:'f'},'Role',h('input',{type:'text',id:'pr-'+scope,list:'roles',value:defaultRole})),
+    h('label',{class:'f'},'Full name',h('input',{type:'text',id:'pn-'+scope,required:true}))),
+   h('div',{class:'two'},h('label',{class:'f'},'Party',h('select',{id:'pp-'+scope},h('option',{value:''},'Not stated'),Object.keys(PARTIES).map(k=>h('option',{value:k},k)))),
+    h('label',{class:'f'},'Public contact email',h('input',{type:'email',id:'pe-'+scope}))),
+   h('label',{class:'f'},'Photo',h('input',{type:'file',accept:'image/*',id:'pf-'+scope,onchange:async e=>{const x=e.target.files[0];if(x)try{photo=await compress(x,260,.75);}catch(_){toast('Could not read that image');}}})),
+   h('datalist',{id:'roles'},['Ward councillor','Executive Mayor','Speaker','Municipal Manager','Ward committee chairperson','Proportional representation councillor'].map(r=>h('option',{value:r}))),
+   h('button',{class:'btn primary',type:'submit',style:'align-self:flex-start'},'Add profile'));
+  f.addEventListener('submit',async e=>{e.preventDefault();const name=$('#pn-'+scope,f).value.trim();if(!name)return;
+   const data={scope,role:$('#pr-'+scope,f).value.trim()||defaultRole,name,party:$('#pp-'+scope,f).value,email:$('#pe-'+scope,f).value.trim(),photo,at:Date.now()};
+   await put(()=>S.db.collection('people').add(data),'Profile added');});
+  box.append(f);
+ }else if(!S.me.canEdit)box.append(h('p',{class:'small muted',style:'margin:10px 0 0'},'Profiles are entered by page editors from official sources such as the '),
+   h('a',{href:'https://www.elections.org.za',target:'_blank',rel:'noopener'},'Electoral Commission of South Africa'),'.');
+ return box;}
+
+/* ------------------------------------------------------------------ illustrations and hero */
+let SC=0;
+function rnd(seed){let x=seed;return()=>{x=(x*16807)%2147483647;return(x-1)/2147483646;};}
+function svgNode(t){const e=document.createElement('template');e.innerHTML=t.trim();return e.content.firstElementChild;}
+function scene(kind,after,label){
+ const u='s'+(++SC),r=rnd(11);let b='';
+ const sky=(a,c)=>`<defs><linearGradient id="${u}k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${c}"/></linearGradient></defs><rect width="400" height="150" fill="url(#${u}k)"/>`;
+ const tree=(x,y,s,c)=>`<rect x="${x-2*s}" y="${y-18*s}" width="${4*s}" height="${18*s}" fill="#6B4A2B"/><circle cx="${x}" cy="${y-28*s}" r="${14*s}" fill="${c}"/><circle cx="${x-9*s}" cy="${y-21*s}" r="${10*s}" fill="${c}"/><circle cx="${x+9*s}" cy="${y-21*s}" r="${10*s}" fill="${c}"/>`;
+ const flowers=(y,n)=>{let o='';const cols=['#F25F7A','#FFD84A','#fff','#B07CF0'];for(let i=0;i<n;i++)o+=`<circle cx="${kind==='road'?(r()<.5?8+r()*70:322+r()*70):10+r()*380}" cy="${y+r()*40}" r="2.4" fill="${cols[i%4]}"/>`;return o;};
+ if(kind==='road'){
+  b+=sky(after?'#6EC1EE':'#9FA8AB',after?'#E4F5FF':'#D5D8D4');
+  if(after)b+='<circle cx="335" cy="40" r="18" fill="#FFE27A"/>';
+  b+=`<path d="M0 142 Q60 108 130 130 T260 122 T400 132 V150 H0Z" fill="${after?'#5DAA5B':'#8A8C78'}"/>`;
+  b+=`<rect y="140" width="400" height="120" fill="${after?'#6DBB62':'#9A8B6A'}"/>`;
+  b+=`<path d="M160 140H240L430 260H-30Z" fill="${after?'#3C4148':'#5A5E60'}"/>`;
+  if(after){
+   b+='<path d="M160 140L-30 260H0L164 140Z M240 140L430 260H400L236 140Z" fill="#fff"/>';
+   [[148,8,2],[165,14,4],[190,22,7],[225,34,12]].forEach(a=>{b+=`<rect x="${200-a[2]/2}" y="${a[0]}" width="${a[2]}" height="${a[1]}" fill="#FFD84A"/>`;});
+   b+=tree(40,158,1.3,'#2F8F46')+tree(95,146,.8,'#3A9B50')+tree(360,158,1.4,'#2F8F46')+tree(310,146,.8,'#3A9B50');
+   b+='<rect x="120" y="82" width="3" height="66" fill="#555"/><rect x="120" y="82" width="18" height="3" fill="#555"/><rect x="134" y="84" width="9" height="4" fill="#FFF3B0"/>'+flowers(205,26);
+  }else{
+   b+='<ellipse cx="150" cy="232" rx="42" ry="10" fill="#2A2C2D"/><ellipse cx="255" cy="196" rx="23" ry="6" fill="#2A2C2D"/><ellipse cx="208" cy="166" rx="9" ry="3" fill="#2A2C2D"/><ellipse cx="300" cy="250" rx="30" ry="7" fill="#2A2C2D"/>';
+   b+='<path d="M180 150 L196 175 L188 192 L204 222 M222 152 L214 178 L230 205" stroke="#2E3032" stroke-width="2" fill="none"/>';
+   b+='<rect x="52" y="210" width="9" height="6" fill="#C9C4B8"/><rect x="332" y="205" width="8" height="8" fill="#D6C27A"/><rect x="95" y="240" width="10" height="5" fill="#9AA"/><circle cx="360" cy="236" r="5" fill="#BBB"/>';
+   b+='<path d="M70 150 L84 62" stroke="#4A4540" stroke-width="4"/><path d="M84 62 Q150 78 230 60" stroke="#222" stroke-width="1.5" fill="none"/><path d="M84 66 Q120 100 150 92" stroke="#222" stroke-width="1.5" fill="none"/>';
+   b+='<path d="M20 155 q6-14 10-2 M26 155 q2-12 8-4" stroke="#6E5E3F" stroke-width="2" fill="none"/>';
+  }
+ }else if(kind==='dump'){
+  b+=sky(after?'#6EC1EE':'#A9AEB0',after?'#E4F5FF':'#D8D6D0');
+  if(after)b+='<circle cx="60" cy="38" r="17" fill="#FFE27A"/>';
+  b+=`<rect y="128" width="400" height="132" fill="${after?'#62B35A':'#9B8A63'}"/>`;
+  if(after){
+   b+='<rect y="104" width="400" height="30" fill="#2F7D4A"/>'+tree(60,140,1.4,'#2F8F46')+tree(340,138,1.5,'#3A9B50')+tree(210,128,.9,'#2F8F46');
+   b+='<path d="M120 260 Q190 190 270 150" stroke="#E4D9B5" stroke-width="26" fill="none"/>';
+   b+='<rect x="262" y="176" width="46" height="5" fill="#8A5A2B"/><rect x="266" y="181" width="3" height="12" fill="#444"/><rect x="301" y="181" width="3" height="12" fill="#444"/>';
+   b+='<rect x="60" y="190" width="3" height="52" fill="#D33"/><rect x="118" y="190" width="3" height="52" fill="#D33"/><rect x="58" y="188" width="64" height="4" fill="#D33"/><path d="M80 192 L80 222 M100 192 L100 222" stroke="#999" stroke-width="1"/><rect x="76" y="222" width="8" height="3" fill="#2B6"/><rect x="96" y="222" width="8" height="3" fill="#2B6"/>'+flowers(215,34);
+  }else{
+   b+='<rect y="92" width="400" height="44" fill="#7C7F80"/><path d="M30 118 q10-12 20 0 t20 0 M170 112 l12 14 l12-14 l12 14 M300 120 q14-14 28 0" stroke="#C0392B" stroke-width="3" fill="none"/>';
+   [[110,205,26,16],[150,215,30,18],[190,200,24,15],[130,188,22,14],[225,222,26,15]].forEach(a=>{b+=`<ellipse cx="${a[0]}" cy="${a[1]}" rx="${a[2]}" ry="${a[3]}" fill="#1E2022"/><path d="M${a[0]-4} ${a[1]-a[3]} l4-7 l4 7" stroke="#1E2022" stroke-width="3" fill="none"/>`;});
+   b+='<circle cx="285" cy="210" r="17" fill="none" stroke="#222" stroke-width="7"/><circle cx="310" cy="228" r="14" fill="none" stroke="#222" stroke-width="6"/><circle cx="268" cy="236" r="12" fill="none" stroke="#222" stroke-width="5"/>';
+   b+='<path d="M60 240 l22-26 l30 6 l10 22Z" fill="#8B8478"/><rect x="320" y="170" width="52" height="22" fill="#6C5A48"/><rect x="320" y="160" width="52" height="10" fill="#7F6C57"/><rect x="40" y="165" width="26" height="14" fill="#B8B1A3"/>';
+   b+='<path d="M20 150 l-4-14 M26 150 l2-16 M34 150 l6-12 M350 150 l-4-14 M358 150 l4-14" stroke="#7A6A45" stroke-width="2"/><circle cx="240" cy="190" r="4" fill="#D8D8D8"/><circle cx="165" cy="238" r="4" fill="#B9B"/>';
+  }
+ }else{
+  b+=sky(after?'#2B3A67':'#171B24',after?'#F2A65A':'#363B47');
+  for(let x=-10;x<400;x+=34){const hh=40+r()*70;b+=`<rect x="${x}" y="${150-hh}" width="30" height="${hh+30}" fill="${after?'#1B2342':'#0D1016'}"/>`;
+   for(let wy=150-hh+6;wy<170;wy+=11)for(let wx=x+4;wx<x+27;wx+=9)if(r()<(after?.55:.07))b+=`<rect x="${wx}" y="${wy}" width="5" height="6" fill="${after?'#FFD36B':'#2A3040'}"/>`;}
+  b+=`<rect y="172" width="400" height="88" fill="${after?'#2A2F3C':'#13161C'}"/>`;
+  b+=`<defs><radialGradient id="${u}g"><stop offset="0" stop-color="#FFE9A0" stop-opacity=".85"/><stop offset="1" stop-color="#FFE9A0" stop-opacity="0"/></radialGradient></defs>`;
+  [70,200,330].forEach((x,i)=>{
+   if(after){b+=`<path d="M${x-6} 86 L${x-52} 250 L${x+52} 250 L${x+6} 86Z" fill="#FFE9A0" opacity=".18"/><circle cx="${x}" cy="84" r="46" fill="url(#${u}g)"/><rect x="${x-2}" y="86" width="4" height="86" fill="#3A3F4F"/><rect x="${x-12}" y="80" width="24" height="6" rx="3" fill="#FFF3B0"/>`;}
+   else if(i===1){b+=`<rect x="${x-2}" y="96" width="4" height="76" fill="#262A33"/><path d="M${x} 96 L${x+22} 112" stroke="#262A33" stroke-width="4"/><rect x="${x+18}" y="110" width="14" height="5" fill="#333" transform="rotate(40 ${x+25} 112)"/>`;}
+   else{b+=`<rect x="${x-2}" y="86" width="4" height="86" fill="#262A33"/><rect x="${x-12}" y="80" width="24" height="6" rx="3" fill="#2E323C"/>`;}
+  });
+  if(!after)b+='<path d="M0 250 L400 205" stroke="#1B1E25" stroke-width="2"/>';
+ }
+ return `<svg viewBox="0 0 400 260" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${label||'Illustration'}" xmlns="http://www.w3.org/2000/svg">${b}</svg>`;
+}
+function joburgSvg(){
+ const u='j'+(++SC),r=rnd(7);
+ let s=`<svg viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Illustration of a Johannesburg suburb at dusk with the city skyline and jacaranda trees" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="${u}a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1B2550"/><stop offset=".55" stop-color="#7A4E86"/><stop offset=".85" stop-color="#F08A5D"/><stop offset="1" stop-color="#F7C77E"/></linearGradient></defs><rect width="800" height="400" fill="url(#${u}a)"/><circle cx="650" cy="258" r="48" fill="#FFD9A0" opacity=".5"/>`;
+ for(let x=0;x<800;x+=26){const hh=34+r()*84;s+=`<rect x="${x}" y="${300-hh}" width="22" height="${hh+30}" fill="#4A3F6B" opacity=".85"/>`;}
+ const lit=(x,y,w,h)=>{let o='';for(let wy=y+6;wy<y+h-4;wy+=12)for(let wx=x+5;wx<x+w-6;wx+=10)if(r()<.45)o+=`<rect x="${wx}" y="${wy}" width="4" height="6" fill="#FFD36B"/>`;return o;};
+ for(let x=10;x<800;x+=58){if(x>230&&x<460||x>560&&x<640)continue;const hh=70+r()*80,w=40+r()*10;s+=`<rect x="${x}" y="${300-hh}" width="${w}" height="${hh+30}" fill="#262B4C"/>`+lit(x,300-hh,w,hh);}
+ s+=`<rect x="248" y="150" width="46" height="170" fill="#262B4C"/><ellipse cx="271" cy="150" rx="23" ry="5" fill="#33385C"/>`+lit(248,150,46,170);
+ s+=`<rect x="384" y="112" width="54" height="210" fill="#262B4C"/><rect x="396" y="88" width="30" height="26" fill="#262B4C"/>`+lit(384,112,54,210);
+ s+=`<rect x="596" y="74" width="8" height="240" fill="#262B4C"/><ellipse cx="600" cy="128" rx="21" ry="11" fill="#262B4C"/><rect x="584" y="124" width="32" height="5" fill="#33385C"/><rect x="599" y="42" width="2" height="34" fill="#262B4C"/><circle cx="600" cy="40" r="2.5" fill="#FF6A5C"/>`;
+ s+='<rect y="318" width="800" height="90" fill="#12142A"/>';
+ const tree=(x,y,k)=>`<rect x="${x-3*k}" y="${y-26*k}" width="${6*k}" height="${28*k}" fill="#1A1424"/><circle cx="${x}" cy="${y-40*k}" r="${26*k}" fill="#9B6BB5"/><circle cx="${x-20*k}" cy="${y-30*k}" r="${18*k}" fill="#8A5BA6"/><circle cx="${x+20*k}" cy="${y-30*k}" r="${18*k}" fill="#A878C2"/>`;
+ const house=(x,w,hh)=>`<rect x="${x}" y="${352-hh}" width="${w}" height="${hh+50}" fill="#1D2040"/><path d="M${x-8} ${352-hh} L${x+w/2} ${352-hh-34} L${x+w+8} ${352-hh}Z" fill="#0C0E22"/><rect x="${x+w*.18}" y="${352-hh+14}" width="${w*.2}" height="14" fill="#FFC95E"/><rect x="${x+w*.62}" y="${352-hh+14}" width="${w*.2}" height="14" fill="#FFC95E"/><rect x="${x+w*.42}" y="${352-24}" width="${w*.16}" height="24" fill="#3A2E24"/>`;
+ [[40,90,40],[230,100,46],[430,96,42],[640,100,44]].forEach(a=>{s+=house(a[0],a[1],a[2]);});
+ [[150,350,1.1],[380,352,1.2],[560,350,1],[760,352,1.2],[10,354,1]].forEach(a=>{s+=tree(a[0],a[1],a[2]);});
+ s+='<path d="M0 372 Q400 358 800 372 V400 H0Z" fill="#0B0C1C"/></svg>';
+ return s;
+}
+function sceneFor(r){return {pothole:'road',signal:'road',refuse:'dump',grass:'dump',light:'lights',power:'lights'}[r.catId]||'road';}
+function picBox(r,big){
+ const box=h('div',{class:'pic'+(big?' big':'')});
+ if(r.photo)box.append(h('img',{src:r.photo,alt:'Photo posted with this report',loading:'lazy'}));
+ else box.append(svgNode(scene(sceneFor(r),false,'Illustration for '+r.cat.label)),h('span',{class:'cap'},r.demo?'Example illustration':'No photo attached'));
+ return box;}
+const BA={road:['Roads','potholes, cracked surface and faded markings','resurfaced, marked and lit'],dump:['Dumping and parks','an illegal dump beside a play area','cleared, planted and cared for'],lights:['Street lights','a dark street with broken lamps','working lights and a safer walk home']};
+function heroCarousel(D,reg){
+ const track=h('div',{class:'ctrack'}),dots=h('div',{class:'cdots',role:'tablist','aria-label':'Choose a slide'}),slides=[];let i=0,hold=false,paused=false;
+ const add=(label,node,cls)=>{const sl=h('div',{class:'cslide '+(cls||''),role:'group','aria-roledescription':'slide','aria-label':label},node);slides.push(sl);track.append(sl);};
+ /* 1 live reports */
+ const minis=h('div',{class:'minis'}),sum=h('div',{class:'small muted'});
+ add('Latest reports',h('div',{class:'stack'},h('div',null,h('div',{class:'eyebrow'},'Live from the wards'),h('h2',{class:'hl'},'What residents are reporting right now')),minis,sum,
+  h('div',{class:'row'},h('a',{class:'btn primary',href:'#new'},'Report an issue'),h('a',{class:'btn',href:'#ranking'},'See who is keeping up'))));
+ reg(rows=>{const latest=rows.slice().sort((a,b)=>b.createdAt-a.createdAt).slice(0,3);clear(minis);
+  if(!latest.length)minis.append(h('div',{class:'empty'},'No reports yet. Yours could be the first.'));
+  latest.forEach(r=>minis.append(h('a',{class:'mini',href:'#r-'+r._id},picBox(r),h('div',{class:'mb'},statusPill(r),h('b',null,r.title||r.cat.label),h('span',{class:'small muted'},wardLabel(r)+' · '+ago(r.createdAt))))));
+  const st=statsFor(rows);sum.textContent=st.total+' reports so far · '+st.resolved+' resolved · '+st.overdue+' overdue';});
+ /* 2 before and after */
+ let kind='road';const pair=h('div',{class:'ba'}),capt=h('p',{class:'small muted',style:'margin:0'}),tabs=h('div',{class:'tabs',role:'tablist','aria-label':'Type of fix'});
+ const paintBA=()=>{clear(pair).append(h('figure',null,svgNode(scene(kind,false,BA[kind][0]+' before')),h('figcaption',null,'Before')),h('figure',{class:'after'},svgNode(scene(kind,true,BA[kind][0]+' after')),h('figcaption',null,'After')));
+  capt.textContent='Before: '+BA[kind][1]+'. After: '+BA[kind][2]+'. Illustrations of the result this app is built to deliver.';
+  [...tabs.children].forEach(x=>x.setAttribute('aria-selected',String(x.dataset.k===kind)));};
+ Object.keys(BA).forEach(k=>tabs.append(h('button',{type:'button',class:'tab','data-k':k,role:'tab',onclick:()=>{kind=k;paintBA();}},BA[k][0])));
+ add('Before and after',h('div',{class:'stack'},h('div',null,h('div',{class:'eyebrow'},'The goal'),h('h2',{class:'hl'},'From neglected to well kept')),tabs,pair,capt));paintBA();
+ /* 3 mission */
+ const bg=svgNode(joburgSvg());bg.setAttribute('class','bg');
+ add('Our mission',[bg,h('div',{class:'scrim'}),h('div',{class:'inner'},h('div',{class:'eyebrow lt'},'Our mission'),h('h2',{class:'hl'},'Every fault seen. Every fix closed out.'),
+  h('p',{style:'margin:0;font-size:17px;line-height:1.55'},'Fix My Ward puts every pothole, blown transformer and dumping site on the public record. Residents report with one photo. Ward offices are told, the clock starts, and everyone can see who responded, how fast, and whether the fix held.'),
+  h('div',{class:'small',style:'opacity:.85'},'Johannesburg, Gauteng · built for every ward in South Africa'))],'fx');
+ /* 4 join */
+ add('Join the initiative',h('div',{class:'inner'},h('div',{class:'eyebrow lt'},'Join the initiative'),h('h2',{class:'hl'},'Your ward gets better when you speak up'),
+  h('div',{class:'pts'},h('div',null,h('b',null,'Report'),'One photo and two minutes puts the problem in front of the ward office.'),h('div',null,h('b',null,'Back others'),'Tap "I am affected too" so urgent faults rise to the top.'),h('div',null,h('b',null,'Follow through'),'Confirm whether it was really fixed and escalate when it was not.')),
+  h('div',{class:'row',style:'justify-content:center'},h('a',{class:'btn light',href:'#new'},'Report an issue'),h('a',{class:'btn ghost',href:'#explore'},'Find your ward'),
+   h('button',{class:'btn ghost',type:'button',onclick:e=>copyText(location.href.split('#')[0],e.currentTarget)},'Copy link to share'))),'fx join');
+ const prev=h('button',{class:'btn sm',type:'button','aria-label':'Previous slide',onclick:()=>go(i-1)},'‹ Prev'),next=h('button',{class:'btn sm',type:'button','aria-label':'Next slide',onclick:()=>go(i+1)},'Next ›'),
+  pause=h('button',{class:'btn sm',type:'button',onclick:()=>{paused=!paused;pause.textContent=paused?'Play':'Pause';}},'Pause');
+ slides.forEach((sl,k)=>dots.append(h('button',{type:'button',role:'tab','aria-label':'Slide '+(k+1)+': '+sl.getAttribute('aria-label'),onclick:()=>go(k)})));
+ function go(n){i=(n+slides.length)%slides.length;track.style.transform='translateX(-'+i*100+'%)';
+  [...dots.children].forEach((d,k)=>d.setAttribute('aria-selected',String(k===i)));slides.forEach((sl,k)=>{sl.inert=k!==i;sl.setAttribute('aria-hidden',String(k!==i));});}
+ const view=h('div',{class:'cview'},track),box=h('section',{class:'hero','aria-roledescription':'carousel','aria-label':'Fix My Ward highlights'},view,h('div',{class:'cbar'},prev,dots,pause,next));
+ let x0=null;view.addEventListener('pointerdown',e=>{x0=e.clientX;});view.addEventListener('pointerup',e=>{if(x0!=null&&Math.abs(e.clientX-x0)>60)go(i+(e.clientX<x0?1:-1));x0=null;});
+ box.addEventListener('mouseenter',()=>{hold=true;});box.addEventListener('mouseleave',()=>{hold=false;});box.addEventListener('focusin',()=>{hold=true;});box.addEventListener('focusout',()=>{hold=false;});
+ go(0);clearInterval(heroTimer);
+ if(!matchMedia('(prefers-reduced-motion: reduce)').matches)heroTimer=setInterval(()=>{if(!hold&&!paused&&box.isConnected)go(i+1);},7000);
+ return box;}
+
+/* ------------------------------------------------------------------ feed */
+function renderFeed(D){
+ const f=S.filters,wrap=h('div',{class:'stack'}),list=h('div',{class:'list'}),sumBox=h('div'),scopeBox=h('div');let heroUpd=null;
+ const sel=(id,label,opts,val,key)=>h('label',{class:'f'},label,h('select',{id,value:val,onchange:e=>{f[key]=e.target.value;paint();}},opts.map(o=>h('option',{value:o[0]},o[1]))));
+ const munOpts=[['','All municipalities']].concat(MUNIS.filter(m=>D.rows.some(r=>r.munId===m.id)).map(m=>[m.id,m.name]));
+ wrap.append(heroCarousel(D,fn=>{heroUpd=fn;}),h('div',null,h('h2',null,'Service delivery reports'),h('p',{class:'muted',style:'margin:4px 0 0'},'Every report shows who it was sent to, how long it has been open and what has been done so far.')),scopeBox,sumBox,
+  h('div',{class:'filters'},
+   h('label',{class:'f'},'Search',h('input',{type:'search',id:'fq',placeholder:'Street, reference, issue',value:f.q,oninput:e=>{f.q=e.target.value;paint();}})),
+   sel('fm','Municipality',munOpts,f.mun,'mun'),
+   sel('fs','Status',[['','Any status']].concat(ST_ORDER.map(k=>[k,ST[k].label])),f.status,'status'),
+   sel('fc','Issue type',[['','Any type']].concat(CATS.map(c=>[c.id,c.label])),f.cat,'cat'),
+   sel('fo','Sort by',[['new','Newest'],['old','Longest waiting'],['aff','Most affected']],f.sort,'sort'),
+   h('label',{class:'f',style:'flex-direction:row;align-items:center;gap:8px;min-height:38px'},h('input',{type:'checkbox',id:'fod',checked:f.overdue||null,onchange:e=>{f.overdue=e.target.checked;paint();}}),'Overdue only')),
+  list);
+ function paint(){
+  const base=scopeRows(D.rows);paintScope(scopeBox,base,D.rows,paint);let rows=base.slice();const q=f.q.trim().toLowerCase();
+  if(f.mun)rows=rows.filter(r=>r.munId===f.mun);if(f.status)rows=rows.filter(r=>r.status===f.status);if(f.cat)rows=rows.filter(r=>r.catId===f.cat);if(f.overdue)rows=rows.filter(r=>r.overdue);
+  if(q)rows=rows.filter(r=>[r.title,r.desc,r.area,r.ref,r.cat.label,r.mun&&r.mun.name].join(' ').toLowerCase().includes(q));
+  if(f.sort==='new')rows.sort((a,b)=>b.createdAt-a.createdAt);else if(f.sort==='old')rows.sort((a,b)=>(a.done-b.done)||a.createdAt-b.createdAt);else rows.sort((a,b)=>b.affected.length-a.affected.length);
+  clear(sumBox).append(summaryStats(rows));clear(list);if(heroUpd)heroUpd(base);
+  if(S.dbState==='loading'&&!S.slow)list.append(h('div',{class:'empty'},'Loading reports…'));
+  else if(!rows.length)list.append(h('div',{class:'empty'},S.reports.length?'No reports match these filters.':'No reports yet. Be the first to report an issue in your ward.',h('div',{style:'margin-top:10px'},h('a',{class:'btn primary',href:'#new'},'Report an issue'))));
+  else rows.slice(0,150).forEach(r=>list.append(postCard(r)));}
+ paint();S.paint=()=>{const nd=derive();D.all=nd.all;D.rows=nd.rows;D.byId=nd.byId;paint();};
+ return wrap;}
+
+/* ------------------------------------------------------------------ report detail */
+function renderReport(D){
+ const r=D.byId.get(S.route.id);
+ if(!r)return h('div',{class:'empty'},S.dbState==='ready'?'This report was not found. It may have been removed.':'Loading report…',h('div',{style:'margin-top:10px'},h('a',{class:'btn',href:'#feed'},'Back to feed')));
+ const left=h('div',{class:'stack'}),right=h('div',{class:'stack'});
+ left.append(h('a',{href:'#feed',class:'small'},'← All reports'),
+  h('div',{class:'row'},statusPill(r),slaBadge(r),r.disputed&&h('span',{class:'pill late'},'Disputed by residents'),r.demo&&h('span',{class:'demo-tag'},'Example')),
+  h('h2',null,r.title||r.cat.label),
+  h('div',{class:'muted'},r.cat.label+' · '+wardLabel(r)+(r.area?' · '+r.area:'')),
+  h('div',{class:'mono muted'},r.ref+' · reported '+fmtDT(r.createdAt)));
+ left.append(picBox(r,true));
+ if(r.desc)left.append(h('p',{style:'margin:0;white-space:pre-wrap'},r.desc));
+ const idx=ST_ORDER.indexOf(r.status);
+ left.append(h('div',{class:'steps','aria-label':'Progress'},ST_ORDER.map((k,i)=>h('div',{class:'step s'+i+(i<=idx?' on':'')},ST[k].label))));
+ /* timeline */
+ const ev=[{at:r.createdAt,cls:'rep',t:'Reported by a resident',n:r.cat.label+' reported in '+wardLabel(r)+'.'}];
+ if(r.emailedAt)ev.push({at:r.emailedAt,cls:'ack',t:'Emailed to the ward office',n:'Sent by the reporting resident with the reference number '+r.ref+'.'});
+ r.ups.forEach(u=>ev.push({at:u.at,cls:ST[u.status]?ST[u.status].cls:'ack',t:'Municipal update: '+(ST[u.status]?ST[u.status].label:u.status),n:u.note,photo:u.photo}));
+ if(Date.now()>r.due&&!(r.done&&r.resolvedAt<=r.due))ev.push({at:r.due,cls:'late',t:'Target response time passed',n:'The default target for this type of issue is '+r.cat.sla+(r.cat.sla===1?' day.':' days.')});
+ ev.sort((a,b)=>a.at-b.at);
+ left.append(h('div',{class:'card'},h('h3',{style:'margin-bottom:12px'},'What has been done so far'),
+  h('ol',{class:'tl'},ev.map(e=>h('li',{class:e.cls},h('b',null,e.t),h('span',{class:'when'},fmtDT(e.at)+' · '+ago(e.at)),e.n&&h('div',{style:'white-space:pre-wrap'},e.n),e.photo&&h('img',{src:e.photo,alt:'Update photo'}))))),
+  !r.ups.length&&h('p',{class:'small muted',style:'margin:12px 0 0'},'No official update has been posted yet.'));
+ /* official update */
+ if(S.me.canEdit&&canPost()){
+  let photo=null;
+  const f=h('form',{class:'card stack'},h('h3',null,'Post an official update'),
+   h('div',{class:'two'},h('label',{class:'f'},'New status',h('select',{id:'us'},ST_ORDER.slice(1).map(k=>h('option',{value:k,selected:k===(r.status==='reported'?'ack':r.status)||null},ST[k].label)))),
+    h('label',{class:'f'},'Photo (optional)',h('input',{type:'file',id:'uph',accept:'image/*',onchange:async e=>{const x=e.target.files[0];if(x)try{photo=await compress(x,800,.7);}catch(_){toast('Could not read that image');}}}))),
+   h('label',{class:'f'},'What has been done',h('textarea',{id:'un',required:true,placeholder:'For example: Team dispatched, materials ordered, repair expected on Friday.'})),
+   h('button',{class:'btn primary',type:'submit',style:'align-self:flex-start'},'Post update'));
+  f.addEventListener('submit',async e=>{e.preventDefault();const note=$('#un',f).value.trim();if(!note)return;
+   await put(()=>S.db.collection('updates').add({reportId:r._id,status:$('#us',f).value,note,photo,at:Date.now()}),'Update posted');});
+  left.append(f);}
+ /* verdict */
+ if(r.done){
+  const mine=r.vs.find(x=>x.userId===S.me.id);
+  const vote=v=>put(()=>S.db.doc('verdicts/'+r._id+'_'+S.me.id).set({reportId:r._id,userId:S.me.id,v,at:Date.now()}),'Thanks, your answer is recorded');
+  left.append(h('div',{class:'card stack'},h('h3',null,'Was it really fixed?'),
+   h('p',{class:'small muted',style:'margin:0'},'A report is only closed once residents agree. '+r.fixed+' confirmed fixed, '+r.notfixed+' say it is not fixed.'),
+   h('div',{class:'row'},h('button',{class:'btn'+(mine&&mine.v==='fixed'?' primary':''),disabled:!canPost()||!S.me.id,onclick:()=>vote('fixed')},'Yes, it is fixed'),
+    h('button',{class:'btn'+(mine&&mine.v==='notfixed'?' danger':''),disabled:!canPost()||!S.me.id,onclick:()=>vote('notfixed')},'No, still a problem')),
+   r.disputed&&h('div',{class:'notice bad'},'More residents say this is not fixed than say it is. It is flagged as disputed.')));}
+ /* escalate */
+ if(r.overdue){
+  const info=muniInfo(r.munId);
+  const text=`Escalation: service delivery request ${r.ref} (${r.cat.label}, ${wardLabel(r)}) was reported on ${fmtDate(r.createdAt)} and has been open for ${dur(r.age)}, past the ${r.cat.sla}-day target. Status: ${ST[r.status].label}. Please confirm who is responsible and when it will be resolved. Details: ${location.href.split('#')[0]}#r-${r._id}`;
+  left.append(h('div',{class:'card stack',style:'border-color:var(--rep)'},h('h3',null,'This report is overdue. Escalate it.'),
+   h('ol',{style:'margin:0;padding-left:20px'},ESCALATE.map(x=>h('li',null,x))),
+   h('div',{class:'row'},h('button',{class:'btn',onclick:e=>copyText(text,e.currentTarget)},'Copy escalation message'),
+    info.email&&emailOk(info.email)&&h('a',{class:'btn',href:'mailto:'+info.email+'?subject='+encodeURIComponent('Escalation '+r.ref)+'&body='+encodeURIComponent(text)},'Email the municipality'))));}
+ /* comments */
+ const cbox=h('div',{class:'card stack'},h('h3',null,'Comments ('+r.coms.length+')'));
+ r.coms.forEach(c=>cbox.append(h('div',{class:'comment'},h('div',{class:'by'},(c.official?'Municipal staff':'Resident')+' · '+ago(c.at)),h('div',{style:'white-space:pre-wrap'},c.text))));
+ const cf=h('form',{class:'stack'},h('label',{class:'f'},'Add a comment',h('textarea',{id:'cm',required:true,disabled:!canPost()||null,placeholder:canPost()?'Add detail, a correction or news from the street':'You need contributor access to comment'})),
+  h('button',{class:'btn',type:'submit',disabled:!canPost()||null,style:'align-self:flex-start'},'Post comment'));
+ cf.addEventListener('submit',async e=>{e.preventDefault();const t=$('#cm',cf).value.trim();if(!t)return;
+  await put(()=>S.db.collection('comments').add({reportId:r._id,text:t,at:Date.now(),authorId:S.me.id,official:S.me.canEdit}),'Comment posted');});
+ cbox.append(cf);left.append(cbox);
+ /* sidebar */
+ const mine=r.affected.find(x=>x.userId===S.me.id);
+ right.append(h('div',{class:'card stack'},h('h3',null,r.affected.length+(r.affected.length===1?' resident affected':' residents affected')),
+  h('button',{class:'btn'+(mine?' primary':''),disabled:!canPost()||!S.me.id,onclick:()=>{const ref=S.db.doc('confirms/'+r._id+'_'+S.me.id);
+   put(()=>mine?ref.delete():ref.set({reportId:r._id,userId:S.me.id,at:Date.now()}));}},mine?'You are affected too (tap to undo)':'I am affected too'),
+  h('p',{class:'small muted',style:'margin:0'},'More affected residents moves a report up the priority list.')));
+ right.append(h('div',{class:'card stack'},h('h3',null,'Location'),r.lat!=null?[h('kbd',{class:'addr'},(+r.lat).toFixed(5)+', '+(+r.lon).toFixed(5)),
+   h('a',{class:'btn',href:'https://www.google.com/maps?q='+(+r.lat).toFixed(6)+','+(+r.lon).toFixed(6),target:'_blank',rel:'noopener'},'Open in Google Maps'),
+   r.locSource&&h('span',{class:'small muted'},'Source: '+r.locSource)]:h('span',{class:'muted'},'No coordinates were given. The ward and municipality were chosen by the reporter.'),
+  r.mun&&h('div',{class:'small'},h('a',{href:'#'+(r.ward?'w-'+r.munId+'-'+r.ward:'m-'+r.munId)},'See '+(r.ward?'Ward '+r.ward+' and ':'')+r.mun.name+' →'))));
+ right.append(dispatchCard(r));
+ if(r.ward&&r.mun)right.append(peopleBlock('w-'+r.munId+'-'+r.ward,'Ward councillor','Responsible ward councillor','No councillor profile is on file for this ward yet.'));
+ return h('div',{class:'detail'},left,right);}
+
+/* ------------------------------------------------------------------ new report */
+function renderNew(D){
+ const d=S.draft,wrap=h('div',{class:'form'});
+ if(S.dbState!=='ready'&&S.dbState!=='loading')wrap.append(h('div',{class:'notice warn'},'Posting needs the shared report store, which is not available in this view.'));
+ wrap.append(h('div',null,h('h2',null,'Report a service delivery issue'),h('p',{class:'muted',style:'margin:4px 0 0'},'Take a photo, say where it is, and the report goes up for everyone to track.')));
+ /* 1 photo */
+ const prev=h('div'),locInfo=h('div',{class:'small'}),drop=h('label',{class:'drop',for:'ph'});
+ function paintPhoto(){clear(drop);drop.append(d.photo?h('img',{src:d.photo,alt:'Your photo'}):h('b',null,'Tap to take or choose a photo'),
+  h('span',{class:'small muted'},d.photo?'Tap to replace '+(d.photoName||'photo'):'A clear photo helps the ward office find and fix it faster'));}
+ paintPhoto();
+ const sec1=h('section',{class:'sect'},h('h3',null,h('i',null,'1'),'Photo (required)'),drop,
+  h('input',{type:'file',id:'ph',accept:'image/*',capture:'environment',style:'position:absolute;left:-9999px',onchange:async e=>{
+   const file=e.target.files[0];if(!file)return;d.photoName=file.name;
+   try{const gps=readExifGps(await file.arrayBuffer());
+    d.photo=await compress(file,960,.72);paintPhoto();
+    if(gps&&inSA(gps.lat,gps.lon)){setCoords(gps.lat,gps.lon,'Photo location data');toast('Location read from your photo');}
+    else if(d.lat==null)locInfo.textContent='This photo carries no location. Paste a Google Maps pin below or choose the ward by hand.';
+   }catch(_){toast('Could not read that image. Try a JPEG or PNG photo.');}}}),prev);
+ /* 2 what */
+ const cats=h('div',{class:'cats',role:'radiogroup','aria-label':'Issue type'},CATS.map(c=>h('label',{class:'cat'},
+  h('input',{type:'radio',name:'cat',value:c.id,checked:d.cat===c.id||null,onchange:()=>{d.cat=c.id;}}),h('span',null,c.label,h('small',null,'Default target: '+c.sla+' days')))));
+ const sec2=h('section',{class:'sect'},h('h3',null,h('i',null,'2'),'What is wrong'),cats,
+  h('label',{class:'f'},'Short title (optional)',h('input',{type:'text',id:'tt',maxlength:90,value:d.title,placeholder:'Deep pothole outside the clinic',oninput:e=>{d.title=e.target.value;}})),
+  h('label',{class:'f'},'Describe it',h('textarea',{id:'ds',value:d.desc,placeholder:'How big is it, how long has it been like this, who is at risk?',oninput:e=>{d.desc=e.target.value;}})));
+ /* 3 where */
+ const provSel=h('select',{id:'wp',onchange:e=>{d.prov=e.target.value;d.mun='';d.ward='';fillMun();fillWard();}}),
+  munSel=h('select',{id:'wm',onchange:e=>{d.mun=e.target.value;d.ward='';fillWard();}}),wardBox=h('div'),coordBox=h('div',{class:'small'}),suggest=h('div',{class:'notice',hidden:true});
+ function fillProv(){clear(provSel).append(h('option',{value:''},'Choose province'),PROVS.map(p=>h('option',{value:p.id},p.name)));provSel.value=d.prov;}
+ function fillMun(){clear(munSel).append(h('option',{value:''},d.prov?'Choose municipality':'Choose a province first'),MUNIS.filter(m=>m.prov===d.prov).map(m=>h('option',{value:m.id},m.name+(m.type==='Metro'?' (Metro)':''))));munSel.value=d.mun;}
+ function fillWard(){clear(wardBox);const m=MUNI[d.mun];if(!m){wardBox.append(h('label',{class:'f'},'Ward number',h('input',{type:'number',disabled:true,placeholder:'Choose a municipality first'})));return;}
+  if(m.wards){const s=h('select',{id:'ww',onchange:e=>{d.ward=e.target.value;}},h('option',{value:''},'Not sure'),Array.from({length:m.wards},(_,i)=>h('option',{value:i+1},'Ward '+(i+1))));s.value=d.ward;wardBox.append(h('label',{class:'f'},'Ward number',s));}
+  else wardBox.append(h('label',{class:'f'},'Ward number',h('span',{class:'hint'},'Leave empty if you do not know it'),h('input',{type:'number',id:'ww',min:1,max:150,value:d.ward,oninput:e=>{d.ward=e.target.value;}})));}
+ function setCoords(lat,lon,src){d.lat=lat;d.lon=lon;d.locSource=src;const n=nearestMuni(lat,lon);d.nearest=n;
+  clear(coordBox).append(h('div',null,'Pin: ',h('span',{class:'mono'},lat.toFixed(5)+', '+lon.toFixed(5)),' ('+src+') ',h('a',{href:'https://www.google.com/maps?q='+lat.toFixed(6)+','+lon.toFixed(6),target:'_blank',rel:'noopener'},'check on Google Maps')));
+  locInfo.textContent='';clear(suggest);suggest.hidden=false;
+  suggest.append('The nearest municipality centre is ',h('b',null,n.m.name),' (about '+Math.round(n.d)+' km away). This is a suggestion, not a boundary lookup. ',
+   h('button',{class:'btn sm',type:'button',onclick:()=>{d.prov=n.m.prov;d.mun=n.m.id;d.ward='';provSel.value=d.prov;fillMun();fillWard();}},'Use '+n.m.name),
+   n.d>40?h('div',{class:'small',style:'margin-top:6px'},'That is far from the pin. Check the municipality that covers this exact spot.'):null);}
+ fillProv();fillMun();fillWard();
+ const pasteIn=h('input',{type:'text',id:'pl',placeholder:'Paste a Google Maps link or coordinates, for example -26.2041, 28.0473'});
+ const sec3=h('section',{class:'sect'},h('h3',null,h('i',null,'3'),'Where is it'),
+  h('div',{class:'notice'},'This page cannot read your phone GPS directly. Photos taken with location turned on carry it automatically. Otherwise drop a pin in Google Maps, share it, and paste the link here.'),locInfo,
+  h('div',{class:'row'},h('div',{class:'grow',style:'min-width:240px'},pasteIn),
+   h('button',{class:'btn',type:'button',onclick:()=>{const c=parseCoords(pasteIn.value);if(!c){toast('No South African coordinates found in that text');return;}setCoords(c.lat,c.lon,'Pasted pin');}},'Use this pin'),
+   h('a',{class:'btn',href:'https://www.google.com/maps',target:'_blank',rel:'noopener'},'Open Google Maps')),
+  coordBox,suggest,
+  h('div',{class:'two'},h('label',{class:'f'},'Province',provSel),h('label',{class:'f'},'Municipality',munSel)),wardBox,
+  h('label',{class:'f'},'Street or area',h('span',{class:'hint'},'Street name, nearest landmark or suburb'),h('input',{type:'text',id:'ar',value:d.area,oninput:e=>{d.area=e.target.value;}})));
+ if(d.lat!=null)setCoords(d.lat,d.lon,d.locSource||'Photo location data');
+ /* 4 submit */
+ const msg=h('div',{class:'notice bad',hidden:true});
+ const sub=h('button',{class:'btn primary',type:'button',style:'align-self:flex-start',disabled:!canPost()||!S.me.id||null,onclick:submit},'Submit report');
+ async function submit(){
+  const m=MUNI[d.mun];msg.hidden=true;
+  const err=!d.cat?'Choose the type of issue.':!m?'Choose the municipality responsible for this spot.':!d.photo?'Add a photo of the problem. The ward office needs it to find and fix the issue.':'';
+  if(err){msg.textContent=err;msg.hidden=false;msg.scrollIntoView({block:'center'});return;}
+  sub.disabled=true;
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,6),n=new Date(),
+   ref=m.id+'-'+String(n.getFullYear()).slice(2)+String(n.getMonth()+1).padStart(2,'0')+String(n.getDate()).padStart(2,'0')+'-'+id.slice(-4).toUpperCase();
+  const doc={ref,cat:d.cat,title:d.title.trim()||CAT[d.cat].label,desc:d.desc.trim(),photo:d.photo,lat:d.lat,lon:d.lon,locSource:d.locSource,munId:m.id,ward:d.ward?+d.ward:null,area:d.area.trim(),createdAt:n.getTime(),authorId:S.me.id};
+  const ok=await put(async()=>{await S.db.doc('reports/'+id).set(doc);await S.db.doc('confirms/'+id+'_'+S.me.id).set({reportId:id,userId:S.me.id,at:n.getTime()});});
+  sub.disabled=false;if(!ok)return;S.draft=blankDraft();S.justPosted=id;go('r-'+id);toast('Report posted. Now notify the ward office.');}
+ wrap.append(sec1,sec2,sec3,h('section',{class:'sect'},h('h3',null,h('i',null,'4'),'Submit'),msg,
+  h('p',{class:'small muted',style:'margin:0'},'Reports are public and shown without your name. Do not include personal details such as phone numbers in the description.'),sub,
+  (!S.me.id&&S.dbState==='ready')?h('span',{class:'small muted'},'Sign in to submit.'):null));
+ return wrap;}
+
+/* ------------------------------------------------------------------ explore: map */
+const MAPD={W:680,H:596,lat0:-22.0,lat1:-35.2,lon0:16.2,lon1:33.4};
+const px=(lon,lat)=>[(lon-MAPD.lon0)/(MAPD.lon1-MAPD.lon0)*MAPD.W,(lat-MAPD.lat0)/(MAPD.lat1-MAPD.lat0)*MAPD.H];
+const OUTLINE=[[16.45,-28.62],[17.3,-28.85],[18.5,-28.9],[19.5,-28.6],[20.0,-28.4],[20.0,-24.8],[20.7,-25.4],[20.65,-26.85],[22.0,-26.5],[23.0,-25.9],[24.5,-25.8],[25.6,-25.6],[26.6,-24.5],[27.0,-23.8],[27.8,-22.95],[28.9,-22.5],[30.0,-22.3],[31.3,-22.4],[31.5,-23.6],[31.95,-24.6],[31.95,-25.45],[31.4,-25.75],[30.8,-26.2],[30.8,-26.8],[31.3,-27.3],[32.0,-26.85],[32.9,-26.85],[32.85,-28.2],[32.0,-28.8],[31.05,-29.87],[30.45,-30.75],[29.55,-31.6],[28.5,-32.55],[27.9,-33.05],[26.9,-33.7],[25.6,-34.0],[24.8,-34.15],[23.4,-34.1],[22.1,-34.2],[20.9,-34.4],[20.0,-34.8],[19.4,-34.7],[18.5,-34.4],[18.4,-33.9],[18.1,-33.5],[17.95,-33.0],[18.3,-32.1],[18.2,-31.4],[17.9,-31.0],[17.3,-30.3],[16.87,-29.25]];
+const LESOTHO=[[27.0,-29.7],[27.5,-30.3],[28.3,-30.65],[29.2,-30.2],[29.4,-29.3],[28.6,-28.65],[27.6,-28.9]];
+const SEEDS=[['WC',18.8,-33.2],['WC',19.5,-32.0],['WC',21.3,-33.7],['WC',22.8,-33.8],['WC',20.2,-34.2],
+ ['NC',17.8,-29.8],['NC',18.6,-30.6],['NC',21.0,-29.0],['NC',22.5,-30.4],['NC',23.5,-28.0],['NC',24.4,-29.6],['NC',19.8,-31.3],['NC',22.0,-31.0],['NC',21.5,-27.0],
+ ['EC',25.2,-32.2],['EC',26.5,-31.0],['EC',28.2,-31.0],['EC',27.0,-33.0],['EC',24.5,-33.5],['EC',28.7,-31.8],
+ ['FS',26.0,-28.8],['FS',27.0,-29.5],['FS',27.2,-28.0],['FS',25.3,-29.3],['FS',26.6,-27.4],['FS',28.3,-28.2],
+ ['NW',25.0,-26.5],['NW',26.5,-25.8],['NW',24.2,-27.0],['NW',23.5,-26.0],['NW',27.0,-26.6],['NW',27.2,-25.6],
+ ['GP',28.0,-26.5],['GP',28.1,-25.8],['GP',28.5,-26.0],['GP',27.7,-26.1],
+ ['LP',29.3,-23.8],['LP',28.0,-24.2],['LP',27.8,-23.4],['LP',30.5,-23.2],['LP',30.4,-24.0],['LP',29.3,-24.8],
+ ['MP',30.0,-25.8],['MP',29.8,-26.5],['MP',31.0,-25.4],['MP',30.9,-24.8],['MP',30.2,-26.1],
+ ['KZN',31.0,-29.0],['KZN',30.0,-28.9],['KZN',31.9,-27.9],['KZN',30.4,-30.0],['KZN',30.1,-30.7],['KZN',29.6,-28.3]];
+const LABELS={WC:[20.4,-33.3],NC:[21.6,-29.5],EC:[26.6,-32.3],FS:[26.6,-28.7],KZN:[30.8,-29.0],NW:[25.4,-26.3],GP:[28.1,-26.2],LP:[29.2,-23.5],MP:[30.2,-25.5]};
+let MAPIDX=null;
+function mapIndex(){if(MAPIDX)return MAPIDX;const {W,H}=MAPD,oc=document.createElement('canvas');oc.width=W;oc.height=H;const o=oc.getContext('2d');
+ const path=(pts)=>{o.beginPath();pts.forEach((p,i)=>{const q=px(p[0],p[1]);i?o.lineTo(q[0],q[1]):o.moveTo(q[0],q[1]);});o.closePath();};
+ o.fillStyle='#000';path(OUTLINE);o.fill();o.globalCompositeOperation='destination-out';path(LESOTHO);o.fill();
+ const a=o.getImageData(0,0,W,H).data,idx=new Uint8Array(W*H).fill(255),ids=PROVS.map(p=>p.id),sp=SEEDS.map(s=>{const q=px(s[1],s[2]);return[ids.indexOf(s[0]),q[0],q[1]];});
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(a[(y*W+x)*4+3]<128)continue;let b=1e9,bi=0;for(let k=0;k<sp.length;k++){const dx=x-sp[k][1],dy=(y-sp[k][2])*1.0,dd=dx*dx+dy*dy;if(dd<b){b=dd;bi=sp[k][0];}}idx[y*W+x]=bi;}
+ return MAPIDX={idx,path};}
+const isDark=()=>{const t=document.documentElement.getAttribute('data-theme');return t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);};
+function hsl(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return[f(0)*255,f(8)*255,f(4)*255].map(Math.round);}
+function drawMap(cv,sel,hov,markers){
+ const {W,H}=MAPD,{idx}=mapIndex(),ctx=cv.getContext('2d'),dark=isDark(),img=ctx.createImageData(W,H),dt=img.data;
+ const cols=PROVS.map(p=>{const act=sel===p.id,dim=sel&&!act,hv=hov===p.id;return hsl(p.hue,dim?10:dark?34:38,dark?(act?48:hv?42:dim?20:32):(act?60:hv?68:dim?88:78));});
+ const edge=dark?[21,32,27]:[255,255,255],bg=dark?[27,40,34]:[241,245,243];
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){const i=y*W+x,o=i*4,v=idx[i];let c;
+  if(v===255)c=bg;else if((x<W-1&&idx[i+1]!==v)||(y<H-1&&idx[i+W]!==v))c=edge;else c=cols[v];dt[o]=c[0];dt[o+1]=c[1];dt[o+2]=c[2];dt[o+3]=255;}
+ ctx.putImageData(img,0,0);
+ ctx.font='600 13px "IBM Plex Mono",monospace';ctx.textAlign='center';ctx.fillStyle=dark?'#E6EFEA':'#12201B';
+ for(const k in LABELS){const q=px(LABELS[k][0],LABELS[k][1]);ctx.globalAlpha=sel&&sel!==k?.45:1;ctx.fillText(k,q[0],q[1]+(k==='GP'?-14:4));}ctx.globalAlpha=1;
+ ctx.fillStyle=dark?'#9DB0A8':'#54655E';ctx.font='11px "IBM Plex Sans",sans-serif';let q=px(28.3,-29.5);ctx.fillText('Lesotho',q[0],q[1]);q=px(31.5,-26.5);ctx.fillText('Eswatini',q[0]+6,q[1]);
+ for(const m of MUNIS){const q=px(m.lon,m.lat),on=markers&&markers.has(m.id),r=m.type==='Metro'?5.5:3.6;
+  ctx.beginPath();ctx.arc(q[0],q[1],on?r+3:r,0,6.283);ctx.fillStyle=on?(dark?'#3FBF8A':'#0A6B4D'):(dark?'#E6EFEA':'#12201B');ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=dark?'#15201B':'#fff';ctx.stroke();}}
+function mapCard(sel,onProv,onMuni,markers){
+ const cv=h('canvas',{class:'map',width:MAPD.W,height:MAPD.H,role:'img','aria-label':'Schematic map of South Africa. Use the lists beside the map to navigate with a keyboard.'}),cap=h('div',{class:'small muted',style:'min-height:20px','aria-live':'polite'},'Click a province, or a dot for a municipality');
+ let hov=null;const draw=()=>drawMap(cv,sel,hov,markers);
+ const at=e=>{const r=cv.getBoundingClientRect(),x=(e.clientX-r.left)*cv.width/r.width,y=(e.clientY-r.top)*cv.height/r.height,sc=cv.width/r.width;
+  let nm=null,nd=1e9;for(const m of MUNIS){const q=px(m.lon,m.lat),d=Math.hypot(q[0]-x,q[1]-y);if(d<nd){nd=d;nm=m;}}
+  const v=mapIndex().idx[Math.max(0,Math.min(MAPD.H-1,Math.round(y)))*MAPD.W+Math.max(0,Math.min(MAPD.W-1,Math.round(x)))];
+  return {muni:nd<9*sc?nm:null,prov:v===255?null:PROVS[v].id};};
+ cv.addEventListener('pointermove',e=>{const t=at(e),nh=t.prov;cap.textContent=t.muni?t.muni.name:(nh?PROV[nh].name:'Click a province, or a dot for a municipality');if(nh!==hov){hov=nh;draw();}});
+ cv.addEventListener('pointerleave',()=>{if(hov){hov=null;draw();}});
+ cv.addEventListener('click',e=>{const t=at(e);if(t.muni)onMuni(t.muni.id);else if(t.prov)onProv(t.prov);});
+ draw();const mq=matchMedia('(prefers-color-scheme: dark)');mq.addEventListener&&mq.addEventListener('change',draw);
+ return h('div',{class:'card mapcard stack'},cv,cap,h('div',{class:'small muted'},'Schematic map. Province areas are approximate. Dots are municipality centres.'));}
+
+/* ------------------------------------------------------------------ explore: panels */
+function crumbs(r){const out=[h('a',{href:'#explore'},'South Africa')];const add=(t,hh)=>{out.push(h('span',{class:'sep'},'›'),hh?h('a',{href:'#'+hh},t):h('b',null,t));};
+ const m=r.mun?MUNI[r.mun]:null,p=m?m.prov:r.prov;
+ if(p)add(PROV[p].name,m?'p-'+p:null);if(m)add(m.name,r.ward?'m-'+m.id:null);if(r.ward)add('Ward '+r.ward,null);return h('div',{class:'crumbs'},out);}
+function searchBox(){
+ const input=h('input',{type:'search',id:'as',autocomplete:'off',placeholder:'Search a town, suburb, municipality or paste coordinates'}),box=h('div',{class:'sugg'});
+ const res=h('div');
+ const paint=()=>{const q=input.value.trim().toLowerCase();clear(res);if(q.length<2)return;
+  const c=parseCoords(input.value),items=[];
+  if(c){const n=nearestMuni(c.lat,c.lon);items.push({t:'Nearest municipality centre: '+n.m.name,s:'about '+Math.round(n.d)+' km from the pin',go:'m-'+n.m.id});}
+  for(const p of PROVS)if(p.name.toLowerCase().includes(q))items.push({t:p.name,s:'Province',go:'p-'+p.id});
+  for(const m of MUNIS){if(m.name.toLowerCase().includes(q))items.push({t:m.name,s:m.type+' · '+PROV[m.prov].name,go:'m-'+m.id});
+   else{const hit=m.towns.split(', ').find(t=>t.toLowerCase().includes(q));if(hit)items.push({t:hit,s:'in '+m.name+' · '+PROV[m.prov].name,go:'m-'+m.id});}}
+  const ul=h('ul');items.slice(0,8).forEach(i=>ul.append(h('li',null,h('button',{type:'button',onclick:()=>go(i.go)},h('span',null,i.t),h('span',{class:'small muted'},i.s)))));
+  if(!items.length)ul.append(h('li',null,h('div',{class:'small muted',style:'padding:8px 10px'},'No match in the built-in list of '+MUNIS.length+' municipalities.')));
+  ul.append(h('li',null,h('a',{href:'https://www.google.com/maps/search/'+encodeURIComponent(input.value.trim()+', South Africa'),target:'_blank',rel:'noopener',style:'display:block;padding:8px 10px'},'Look up "'+input.value.trim()+'" on Google Maps, then paste the pin here')));
+  res.append(ul);};
+ input.addEventListener('input',paint);box.append(h('label',{class:'f'},'Find an area',input),res);return box;}
+function muniStatsFor(D,id,ward){return statsFor(D.rows.filter(r=>r.munId===id&&(ward==null||r.ward===ward)));}
+function renderExplore(D){
+ const r=S.route,m=r.mun?MUNI[r.mun]:null,prov=m?m.prov:(r.prov||null);
+ const markers=new Set(D.rows.filter(x=>x.overdue).map(x=>x.munId));
+ const map=mapCard(prov,p=>go('p-'+p),id=>go('m-'+id),markers);
+ const panel=h('div',{class:'stack'});panel.append(crumbs(r),searchBox());
+ if(!prov){
+  panel.append(h('h2',null,'Choose a province'),h('div',{class:'list'},PROVS.map(p=>{const s=statsFor(D.rows.filter(x=>x.mun&&x.mun.prov===p.id));
+   return h('a',{class:'item',href:'#p-'+p.id},h('span',null,h('b',null,p.name),h('div',{class:'small muted'},MUNIS.filter(x=>x.prov===p.id).length+' municipalities listed')),
+    h('span',{class:'row',style:'gap:6px'},s.open?h('span',{class:'pill neutral'},s.open+' open'):null,s.overdue?h('span',{class:'pill late'},s.overdue+' overdue'):null));})),
+   h('p',{class:'small muted',style:'margin:0'},'Dots on the map that are highlighted have overdue reports.'));
+ }else if(!m){
+  panel.append(h('h2',null,PROV[prov].name),h('div',{class:'list'},MUNIS.filter(x=>x.prov===prov).map(x=>{const s=muniStatsFor(D,x.id);
+   return h('a',{class:'item',href:'#m-'+x.id},h('span',{class:'grow'},h('b',null,x.name),h('div',{class:'small muted'},x.towns)),
+    h('span',{class:'row',style:'gap:6px;justify-content:flex-end'},h('span',{class:'chip'},x.type),s.overdue?h('span',{class:'pill late'},s.overdue+' overdue'):s.open?h('span',{class:'pill neutral'},s.open+' open'):null));})));
+ }else if(!r.ward){
+  const s=muniStatsFor(D,m.id),info=muniInfo(m.id),rows=D.rows.filter(x=>x.munId===m.id).sort((a,b)=>b.createdAt-a.createdAt);
+  panel.append(h('div',null,h('h2',null,m.name),h('div',{class:'muted'},m.type+' municipality · '+PROV[m.prov].name+' · '+m.towns)),summaryStats(D.rows.filter(x=>x.munId===m.id)));
+  /* contact */
+  const cc=h('div',{class:'card stack'},h('h3',null,'Ward office contact'));
+  if(info.email)cc.append(h('div',null,h('div',{class:'small muted'},'Reports for this municipality are addressed to'),h('kbd',{class:'addr'},info.email)),info.phone&&h('div',{class:'small'},'Phone: '+info.phone),info.web&&/^https:\/\//.test(info.web)&&h('a',{href:info.web,target:'_blank',rel:'noopener'},'Municipality website'));
+  else cc.append(h('p',{class:'small muted',style:'margin:0'},'No official email address is on file yet. Until one is added, reporters paste the address in themselves.'));
+  if(S.me.canEdit&&canPost()){const f=h('form',{class:'stack'},h('div',{class:'two'},h('label',{class:'f'},'Ward office email',h('input',{type:'email',id:'ce',value:info.email||''})),h('label',{class:'f'},'Phone',h('input',{type:'text',id:'cp',value:info.phone||''}))),
+    h('label',{class:'f'},'Website (https)',h('input',{type:'text',id:'cw',value:info.web||''})),h('button',{class:'btn',type:'submit',style:'align-self:flex-start'},'Save contact'));
+   f.addEventListener('submit',async e=>{e.preventDefault();const em=$('#ce',f).value.trim();if(em&&!emailOk(em)){toast('That email address looks wrong');return;}
+    await put(()=>S.db.doc('munis/'+m.id).set({email:em,phone:$('#cp',f).value.trim(),web:$('#cw',f).value.trim(),at:Date.now()}),'Contact saved');});cc.append(f);}
+  panel.append(cc);
+  /* wards */
+  const wc=h('div',{class:'card stack'},h('h3',null,'Wards'));const wardStat={};D.rows.filter(x=>x.munId===m.id&&x.ward).forEach(x=>{const w=wardStat[x.ward]||(wardStat[x.ward]={n:0,late:0});w.n++;if(x.overdue)w.late++;});
+  const nums=m.wards?Array.from({length:m.wards},(_,i)=>i+1):Object.keys(wardStat).map(Number).sort((a,b)=>a-b);
+  if(m.wards)wc.append(h('p',{class:'small muted',style:'margin:0'},m.wards+' wards. Shaded wards have reports, red ones have overdue reports.'));
+  wc.append(nums.length?h('div',{class:'wards'},nums.map(n=>{const w=wardStat[n];return h('a',{href:'#w-'+m.id+'-'+n,class:w?(w.late?'late':'has'):'',title:'Ward '+n+(w?': '+w.n+' report'+(w.n>1?'s':''):'')},n);})):h('p',{class:'small muted',style:'margin:0'},'No reports with a ward number yet.'));
+  const gi=h('input',{type:'number',min:1,max:150,id:'gw',placeholder:'Ward no.',style:'max-width:110px'});
+  wc.append(h('form',{class:'row',onsubmit:e=>{e.preventDefault();const n=parseInt(gi.value,10);if(n>0&&(!m.wards||n<=m.wards))go('w-'+m.id+'-'+n);else toast(m.wards?'Enter a ward from 1 to '+m.wards:'Enter a ward number');}},h('label',{class:'f',style:'flex-direction:row;align-items:center;gap:8px'},'Go to ward',gi),h('button',{class:'btn sm',type:'submit'},'Go')));
+  panel.append(wc,peopleBlock('m-'+m.id,'Executive Mayor','Municipal leadership','No municipal officials are on file yet.'));
+  panel.append(h('div',{class:'row'},h('h3',{class:'grow'},'Recent reports'),h('button',{class:'btn primary sm',onclick:()=>{S.draft=Object.assign(blankDraft(),{prov:m.prov,mun:m.id});go('new');}},'Report an issue here')));
+  panel.append(rows.length?h('div',{class:'list'},rows.slice(0,8).map(postCard)):h('div',{class:'empty'},'No reports for this municipality yet.'));
+ }else{
+  const w=r.ward,rows=D.rows.filter(x=>x.munId===m.id&&x.ward===w).sort((a,b)=>b.createdAt-a.createdAt);
+  panel.append(h('div',null,h('h2',null,'Ward '+w),h('div',{class:'muted'},m.name+' · '+PROV[m.prov].name)),summaryStats(rows),
+   peopleBlock('w-'+m.id+'-'+w,'Ward councillor','Ward councillor','No councillor profile is on file for this ward yet. The ward councillor is the first person who should act on reports here.'),
+   h('div',{class:'row'},h('h3',{class:'grow'},'Reports in this ward'),h('button',{class:'btn primary sm',onclick:()=>{S.draft=Object.assign(blankDraft(),{prov:m.prov,mun:m.id,ward:String(w)});go('new');}},'Report an issue in Ward '+w)),
+   rows.length?h('div',{class:'list'},rows.map(postCard)):h('div',{class:'empty'},'No reports for this ward yet.'));
+ }
+ return h('div',{class:'explore'},map,panel);}
+
+/* ------------------------------------------------------------------ accountability */
+function renderRanking(D){
+ const wrap=h('div',{class:'stack'}),rows=D.rows;
+ wrap.append(h('div',null,h('h2',null,'Accountability'),h('p',{class:'muted',style:'margin:4px 0 0'},'Municipalities and wards ranked by how reports are actually handled. A report counts as resolved only when a municipal update says so.')),summaryStats(rows));
+ const by=groupBy(rows.filter(r=>r.munId),'munId'),table=h('div',{class:'tablewrap'}),sortBtns=h('div',{class:'row'});
+ const data=Object.keys(by).map(id=>({m:MUNI[id],...statsFor(by[id])}));
+ const sorts={overdue:['Most overdue',(a,b)=>b.overdue-a.overdue||b.open-a.open],rate:['Best resolution rate',(a,b)=>b.rate-a.rate||b.total-a.total],slow:['Slowest to close',(a,b)=>(b.med||0)-(a.med||0)],total:['Most reports',(a,b)=>b.total-a.total]};
+ function paint(){clear(sortBtns).append(h('span',{class:'small muted'},'Sort by'),Object.keys(sorts).map(k=>h('button',{class:'btn sm'+(S.rank.sort===k?' primary':''),onclick:()=>{S.rank.sort=k;paint();}},sorts[k][0])));
+  const sorted=data.slice().sort(sorts[S.rank.sort][1]);clear(table);
+  if(!sorted.length){table.append(h('div',{class:'empty',style:'border:0'},'Rankings appear as reports come in.'));return;}
+  table.append(h('table',null,h('thead',null,h('tr',null,h('th',null,'Municipality'),h('th',{class:'num'},'Reports'),h('th',{class:'num'},'Open'),h('th',{class:'num'},'Overdue'),h('th',null,'Resolved'),h('th',{class:'num'},'Median to close'))),
+   h('tbody',null,sorted.map(x=>h('tr',null,h('td',null,h('a',{href:'#m-'+x.m.id},x.m.name),h('div',{class:'small muted'},PROV[x.m.prov].name)),h('td',{class:'num'},x.total),h('td',{class:'num'},x.open),
+    h('td',{class:'num',style:x.overdue?'color:var(--rep);font-weight:600':''},x.overdue),
+    h('td',null,h('span',{class:'bar',style:'width:'+Math.round(x.rate*80)+'px'}),' '+Math.round(x.rate*100)+'%'),h('td',{class:'num'},x.med==null?'–':dur(x.med)))))));}
+ paint();wrap.append(h('h3',null,'Municipalities'),sortBtns,table);
+ /* wards */
+ const wk={};rows.filter(r=>r.ward&&r.munId).forEach(r=>{const k=r.munId+'-'+r.ward;(wk[k]||(wk[k]=[])).push(r);});
+ const wd=Object.keys(wk).map(k=>({k,mun:wk[k][0].mun,ward:wk[k][0].ward,...statsFor(wk[k])})).sort((a,b)=>b.overdue-a.overdue||b.open-a.open).slice(0,10);
+ if(wd.length)wrap.append(h('h3',null,'Wards with the most open problems'),h('div',{class:'list'},wd.map(x=>h('a',{class:'item',href:'#w-'+x.k},h('span',null,h('b',null,'Ward '+x.ward),h('span',{class:'muted'},' · '+x.mun.name)),
+  h('span',{class:'row',style:'gap:6px'},h('span',{class:'pill neutral'},x.open+' open'),x.overdue?h('span',{class:'pill late'},x.overdue+' overdue'):null)))));
+ /* longest */
+ const long=rows.filter(r=>!r.done).sort((a,b)=>a.createdAt-b.createdAt).slice(0,8);
+ if(long.length)wrap.append(h('h3',null,'Longest outstanding'),h('div',{class:'list'},long.map(postCard)));
+ const dis=rows.filter(r=>r.disputed);
+ if(dis.length)wrap.append(h('h3',null,'Marked resolved but disputed by residents'),h('div',{class:'list'},dis.map(postCard)));
+ wrap.append(h('p',{class:'small muted'},'Target response times are default guides per issue type. Municipalities set their own service standards, so use these as a starting point for conversation, not as a legal deadline.'));
+ return wrap;}
+
+/* ------------------------------------------------------------------ fun facts */
+const FACTS=[
+ {cat:'Places',stat:'3',sl:'capital cities',t:'One country, three capitals',x:'Pretoria is the executive capital, Cape Town the legislative capital and Bloemfontein the judicial capital.'},
+ {cat:'People',stat:'12',sl:'official languages',t:'A country of many voices',x:'South African Sign Language became the twelfth official language in 2023, joining isiZulu, isiXhosa, Afrikaans, English, Sepedi, Setswana, Sesotho, Xitsonga, siSwati, Tshivenda and isiNdebele.'},
+ {cat:'Science and firsts',stat:'1967',sl:'first heart transplant',t:'A world first in Cape Town',x:'Dr Christiaan Barnard led the team that performed the first human-to-human heart transplant at Groote Schuur Hospital on 3 December 1967.'},
+ {cat:'Earth and minerals',stat:'3,106 ct',sl:'the Cullinan diamond',t:'The biggest gem diamond ever found',x:'The largest gem-quality rough diamond on record was found at the Premier Mine near Pretoria in 1905. It was cut into several stones, including two set in the British Crown Jewels.'},
+ {cat:'Earth and minerals',stat:'2 billion',sl:'years old',t:'The largest impact crater on Earth',x:'The Vredefort Dome in the Free State is the largest verified meteorite impact structure on the planet and a UNESCO World Heritage Site.'},
+ {cat:'Earth and minerals',stat:'~4 km',sl:'underground',t:'Among the deepest mines in the world',x:'Mponeng gold mine near Carletonville in Gauteng reaches roughly four kilometres below the surface.'},
+ {cat:'People',stat:'2',sl:'Nobel laureates, one street',t:'Vilakazi Street, Soweto',x:'Nelson Mandela and Archbishop Desmond Tutu both lived on this street, often described as the only street in the world to have been home to two Nobel Peace Prize winners.'},
+ {cat:'People',stat:'4',sl:'Nobel Peace laureates',t:'A short list of big names',x:'Albert Luthuli (1960), Desmond Tutu (1984), and Nelson Mandela and F.W. de Klerk, who shared the prize in 1993.'},
+ {cat:'Nature',stat:'~20,000',sl:'square kilometres',t:'Kruger National Park',x:'Kruger covers nearly 20,000 square kilometres across Limpopo and Mpumalanga, an area about the size of Wales.'},
+ {cat:'Nature',stat:'2,000+',sl:'plant species',t:'Table Mountain is a garden',x:'Table Mountain and its surrounds hold more than two thousand plant species, many found nowhere else, inside the Cape Floral Region, a UNESCO World Heritage Site.'},
+ {cat:'Nature',stat:'African penguins',sl:'Boulders Beach',t:'Penguins on a Cape Town beach',x:'A colony of African penguins lives at Boulders Beach near Simon’s Town. The species is endangered, so keep your distance.'},
+ {cat:'Nature',stat:'Winter',sl:'the sardine run',t:'The greatest shoal on earth',x:'Each winter, huge shoals of sardines move up the Eastern Cape and KwaZulu-Natal coast, followed by dolphins, sharks and gannets.'},
+ {cat:'Places',stat:'~10 million',sl:'trees',t:'A city that is also a forest',x:'Johannesburg is often described as one of the largest human-planted urban forests in the world.'},
+ {cat:'Places',stat:'1',sl:'country inside South Africa',t:'Lesotho is an island on land',x:'Lesotho is completely surrounded by South African territory. Only three countries in the world are fully enclosed by another.'},
+ {cat:'Places',stat:'UTC+2',sl:'all year',t:'No clocks to change',x:'South Africa Standard Time stays the same all year, with no daylight saving.'},
+ {cat:'Places',stat:'1.5%',sl:'of the land area',t:'Smallest province, biggest pull',x:'Gauteng is the smallest province by area yet has the largest population and a very large share of the economy.'},
+ {cat:'Places',stat:'216 m',sl:'Bloukrans Bridge',t:'The highest bridge bungee',x:'Bloukrans Bridge on the Garden Route is widely listed as the highest commercial bridge bungee jump in the world.'},
+ {cat:'Science and firsts',stat:'1991',sl:'joined the NPT',t:'Giving up the bomb',x:'South Africa built nuclear weapons in the 1980s and is widely cited as the only country to have built them and then voluntarily dismantled them.'},
+ {cat:'Science and firsts',stat:'1970s',sl:'Kreepy Krauly',t:'Your pool cleaner is South African',x:'The Kreepy Krauly automatic pool cleaner was invented in South Africa by Ferdinand Chauvier.'},
+ {cat:'Culture and food',stat:'1659',sl:'first Cape wine',t:'Wine since the 1600s',x:'The first wine in the Cape was pressed in 1659, which makes the Cape among the oldest wine regions outside Europe.'},
+ {cat:'Culture and food',stat:'Cederberg',sl:'rooibos country',t:'Rooibos grows in one corner',x:'Rooibos tea is grown in the Cederberg region of the Western Cape and nearby areas. It is naturally caffeine free.'},
+ {cat:'Culture and food',stat:'Durban',sl:'bunny chow',t:'A loaf of curry',x:'Bunny chow, a hollowed-out loaf filled with curry, is a Durban street food rooted in the city’s Indian South African community.'},
+ {cat:'Culture and food',stat:'4',sl:'Rugby World Cups',t:'Four-time champions',x:'The Springboks won the Rugby World Cup in 1995, 2007, 2019 and 2023, more titles than any other nation.'},
+ {cat:'Culture and food',stat:'2010',sl:'first World Cup in Africa',t:'The vuvuzela summer',x:'South Africa hosted the FIFA World Cup in 2010, the first time the tournament was played on the African continent.'}];
+const QUIZ=[
+ {q:'How many capital cities does South Africa have?',o:['1','2','3','4'],a:2,w:0},
+ {q:'How many official languages does South Africa have?',o:['9','11','12','15'],a:2,w:1},
+ {q:'In which province was the Cullinan diamond found?',o:['Gauteng','Northern Cape','KwaZulu-Natal','Western Cape'],a:0,w:3},
+ {q:'Who led the team that did the first human heart transplant in 1967?',o:['Steve Biko','Christiaan Barnard','Albert Luthuli','Ferdinand Chauvier'],a:1,w:2},
+ {q:'Which country is completely surrounded by South Africa?',o:['Eswatini','Namibia','Lesotho','Botswana'],a:2,w:13},
+ {q:'Which Soweto street was home to two Nobel Peace Prize winners?',o:['Vilakazi Street','Church Street','Long Street','Voortrekker Road'],a:0,w:6}];
+const PROVF={
+ GP:[{stat:'1.5%',sl:'of the land area',t:'Smallest province, biggest pull',x:'Gauteng is the smallest province by area yet has the largest population and a very large share of the national economy.'},
+  {stat:'UNESCO',sl:'Cradle of Humankind',t:'Where human ancestors left fossils',x:'The Sterkfontein caves and nearby sites northwest of Johannesburg have produced fossils millions of years old and form part of a World Heritage Site.'}],
+ WC:[{stat:'1 of 7',sl:'New7Wonders of Nature',t:'Table Mountain made the list',x:'Table Mountain was named one of the New7Wonders of Nature in 2011.'},
+  {stat:'1488',sl:'Dias comes ashore',t:'Europeans first landed here in 1488',x:'Portuguese explorer Bartolomeu Dias rounded the Cape in 1488 and came ashore at what is now Mossel Bay.'}],
+ NC:[{stat:'~30%',sl:'of the country',t:'The biggest province by far',x:'The Northern Cape covers close to a third of South Africa’s land but has the smallest population of any province.'},
+  {stat:'MeerKAT',sl:'radio telescope',t:'Listening to the universe from the Karoo',x:'The MeerKAT radio telescope in the Northern Cape is a precursor to the Square Kilometre Array, one of the largest science projects on Earth.'}],
+ EC:[{stat:'1918',sl:'Mandela born',t:'The home of Nelson Mandela',x:'Nelson Mandela was born in 1918 in Mvezo in the Eastern Cape and grew up in Qunu.'},
+  {stat:'Wild Coast',sl:'Hole in the Wall',t:'A rock arch in the Indian Ocean',x:'Hole in the Wall near Coffee Bay is a sea-carved rock arch on the Wild Coast. Its isiXhosa name is often translated as "place of thunder".'}],
+ KZN:[{stat:'UNESCO',sl:'Drakensberg and iSimangaliso',t:'Mountains and wetlands',x:'KwaZulu-Natal is home to the uKhahlamba-Drakensberg Park and the iSimangaliso Wetland Park, both World Heritage Sites.'},
+  {stat:'948 m',sl:'Tugela Falls',t:'Among the tallest waterfalls on Earth',x:'Tugela Falls in the Drakensberg drops about 948 metres in five tiers and is often ranked as the second-highest waterfall in the world.'}],
+ FS:[{stat:'Maluti',sl:'mountains',t:'Sandstone cliffs and mountain passes',x:'The eastern Free State is known for its sandstone cliffs and the Maluti Mountains along the Lesotho border.'},
+  {stat:'Gold',sl:'Free State goldfields',t:'Gold under the grassland',x:'The Free State goldfields around Welkom were developed after the Second World War and made the province a major gold producer.'}],
+ NW:[{stat:'Bushveld',sl:'platinum',t:'The world’s platinum cupboard',x:'The Bushveld Complex, much of it in North West and Limpopo, holds the largest known reserves of platinum group metals in the world.'},
+  {stat:'Pilanesberg',sl:'ancient volcano',t:'A national park inside a volcano',x:'Pilanesberg National Park sits inside the remains of an extinct alkaline volcano, one of the largest of its kind.'}],
+ MP:[{stat:'1873',sl:'Pilgrim’s Rest',t:'A gold rush village',x:'Gold was found near Pilgrim’s Rest in 1873 and the village is now preserved as an open-air museum.'},
+  {stat:'Blyde',sl:'River Canyon',t:'A green canyon',x:'Blyde River Canyon is often described as one of the largest canyons on Earth that is covered in lush vegetation.'}],
+ LP:[{stat:'Baobabs',sl:'giants of the Lowveld',t:'Trees that outlive empires',x:'Limpopo is baobab country, and some of these trees are believed to be over a thousand years old.'},
+  {stat:'13th century',sl:'golden rhinoceros',t:'The golden rhino of Mapungubwe',x:'A small gold rhinoceros found at Mapungubwe, an Iron Age kingdom on the Limpopo River, dates from around the 13th century.'}]};
+const LOCAL={
+ JHB:[{stat:'1886',sl:'gold discovered',t:'A city built on gold',x:'Gold was discovered on the Witwatersrand in 1886, and Johannesburg grew from a mining camp into South Africa’s largest city.'},
+  {stat:'Constitution Hill',sl:'Braamfontein',t:'A prison that became a court',x:'The Old Fort prison on Constitution Hill held both Mahatma Gandhi and Nelson Mandela. It now houses the Constitutional Court.'}],
+ TSH:[{stat:'Jacaranda',sl:'City',t:'Pretoria turns purple each spring',x:'Tens of thousands of jacaranda trees bloom across Pretoria in October, which earned it the name Jacaranda City.'},
+  {stat:'1905',sl:'Cullinan diamond',t:'The big diamond came from here',x:'The Premier Mine at Cullinan, in the City of Tshwane, produced the Cullinan diamond in 1905.'}],
+ EKU:[{stat:'OR Tambo',sl:'International Airport',t:'Africa’s gateway',x:'OR Tambo International Airport in Kempton Park is one of the busiest airports in Africa.'},
+  {stat:'Germiston',sl:'Rand Refinery',t:'Where the gold is refined',x:'Rand Refinery in Germiston is among the largest single-site gold refineries in the world.'}],
+ EMF:[{stat:'1960',sl:'Sharpeville',t:'Sharpeville and Human Rights Day',x:'On 21 March 1960 police killed 69 people at Sharpeville. The date is now observed as Human Rights Day.'},
+  {stat:'1902',sl:'Treaty of Vereeniging',t:'The war ended in Vereeniging',x:'The Treaty of Vereeniging, which ended the Anglo-Boer War, was signed in Vereeniging on 31 May 1902.'}],
+ MOG:[{stat:'Sterkfontein',sl:'caves',t:'A cradle for human ancestors',x:'The Sterkfontein caves near Krugersdorp have produced some of the most important early human ancestor fossils ever found, including the skull known as Mrs Ples.'}],
+ MER:[{stat:'~4 km',sl:'Mponeng',t:'The deep mine next door',x:'Mponeng gold mine near Carletonville reaches roughly four kilometres below the surface, among the deepest mines on Earth.'}],
+ CPT:[{stat:'Robben Island',sl:'UNESCO site',t:'The island prison',x:'Robben Island, where Nelson Mandela spent 18 of his 27 years in prison, is a World Heritage Site just off Cape Town.'},
+  {stat:'1913',sl:'Kirstenbosch',t:'A garden for a whole country’s flora',x:'Kirstenbosch National Botanical Garden was established in 1913 and is widely regarded as one of the great botanical gardens of the world.'}],
+ STB:[{stat:'1679',sl:'founded',t:'The second-oldest town',x:'Stellenbosch was founded in 1679 and is the second-oldest European-established town in South Africa after Cape Town.'}],
+ DRK:[{stat:'Paarl',sl:'means pearl',t:'A rock that shines after rain',x:'Paarl is named after the granite domes above the town, which glisten like pearls after rain.'}],
+ GEO:[{stat:'1811',sl:'founded',t:'Named for a king',x:'George was founded in 1811 and named after King George III. It sits at the heart of the Garden Route.'}],
+ MSB:[{stat:'1488',sl:'Dias lands',t:'Where Europeans first came ashore',x:'Bartolomeu Dias anchored at Mossel Bay in 1488, and the Dias Museum there tells the story.'}],
+ OVS:[{stat:'Whale crier',sl:'Hermanus',t:'A town with a whale crier',x:'Hermanus has a whale crier who blows a kelp horn to announce where southern right whales can be seen from the shore during the season.'}],
+ SLD:[{stat:'Langebaan',sl:'lagoon',t:'A lagoon and a flower show',x:'Langebaan Lagoon is part of West Coast National Park, which bursts into wildflowers in spring.'}],
+ KNY:[{stat:'Knysna seahorse',sl:'estuary',t:'A seahorse found almost nowhere else',x:'The Knysna seahorse lives in only a few estuaries on the Garden Route coast and is often called the most endangered seahorse in the world.'}],
+ SWA:[{stat:'Wheat',sl:'Swartland',t:'The Cape’s wheat country',x:'The Swartland is one of the country’s major wheat-growing regions and is increasingly known for its wines.'}],
+ NMB:[{stat:'Addo',sl:'Big 7',t:'Elephants and whales in one park',x:'Addo Elephant National Park near Gqeberha is sometimes called the Big 7 park because its marine section can show whales and great white sharks as well as the Big 5.'}],
+ BUF:[{stat:'1938',sl:'coelacanth',t:'A living fossil off East London',x:'In December 1938 museum curator Marjorie Courtenay-Latimer in East London identified a coelacanth, a fish thought to have been extinct for millions of years.'}],
+ KSD:[{stat:'1918',sl:'Mandela born',t:'Mandela country',x:'Nelson Mandela was born in 1918 at Mvezo near Mthatha. The Nelson Mandela Museum has sites in Mthatha, Qunu and Mvezo.'}],
+ EMG:[{stat:'Hexagon',sl:'Komani',t:'A town laid out as a hexagon',x:'Komani, formerly Queenstown, was planned in the 1850s as a hexagon so that its streets could be defended.'}],
+ MKN:[{stat:'Makhanda',sl:'National Arts Festival',t:'An arts festival in a university town',x:'Makhanda hosts the National Arts Festival every year, one of the largest arts festivals in Africa, and is home to Rhodes University.'}],
+ KOU:[{stat:'Supertubes',sl:'Jeffreys Bay',t:'A world-famous wave',x:'Jeffreys Bay is known worldwide for Supertubes, regarded as one of the best right-hand point breaks for surfing.'}],
+ ETH:[{stat:'Port of Durban',sl:'shipping',t:'One of Africa’s busiest ports',x:'The Port of Durban is one of the busiest ports in Africa and handles a large share of South Africa’s container traffic.'},
+  {stat:'Indian Ocean',sl:'Golden Mile',t:'A seafront built for walking',x:'Durban’s Golden Mile promenade runs along the warm Indian Ocean coast, and the city is often said to have the largest Indian-descended community outside India.'}],
+ MSD:[{stat:'1893',sl:'Pietermaritzburg station',t:'The night that changed Gandhi',x:'In June 1893 Mohandas Gandhi was thrown off a train at Pietermaritzburg station for refusing to leave a whites-only carriage, an event he later described as pivotal.'}],
+ NWC:[{stat:'1881',sl:'Majuba',t:'The battle near Newcastle',x:'The Battle of Majuba Hill in 1881, near Newcastle, was the decisive clash of the First Boer War.'}],
+ UMH:[{stat:'Richards Bay',sl:'coal terminal',t:'A very big coal exporter',x:'The Richards Bay Coal Terminal is one of the largest coal export terminals in the world.'}],
+ KWD:[{stat:'1828',sl:'Shaka',t:'Shaka’s capital',x:'KwaDukuza, formerly Stanger, was Shaka Zulu’s capital and the place where he was killed in 1828.'}],
+ ADU:[{stat:'1899',sl:'Siege of Ladysmith',t:'A siege of nearly four months',x:'During the Anglo-Boer War, Ladysmith was besieged from November 1899 to February 1900.'}],
+ MAN:[{stat:'1912',sl:'ANC founded',t:'Where the ANC began',x:'The South African Native National Congress, later the ANC, was founded in Bloemfontein in January 1912.'},
+  {stat:'Cheetahs',sl:'Mangaung',t:'A name that means cheetahs',x:'Mangaung is a Sesotho name often translated as "place of cheetahs".'}],
+ MAT:[{stat:'Welkom',sl:'planned city',t:'Gold built this town',x:'Welkom was laid out in the late 1940s to house workers for the Free State goldfields and is known for its many roundabouts.'}],
+ MTS:[{stat:'1955',sl:'Sasol',t:'Fuel from coal started here',x:'Sasolburg is where Sasol opened its first coal-to-fuel plant in 1955.'}],
+ RUS:[{stat:'Platinum',sl:'Rustenburg',t:'Platinum capital',x:'Rustenburg sits at the centre of the Bushveld platinum belt, which holds the largest known platinum reserves on Earth.'}],
+ MAD:[{stat:'1920s',sl:'Hartbeespoort Dam',t:'A dam in a gap in the mountains',x:'Hartbeespoort Dam was built in the 1920s in a narrow gap of the Magaliesberg and is a popular weekend getaway for Gauteng.'}],
+ JBM:[{stat:'1838',sl:'founded',t:'The first town north of the Vaal',x:'Potchefstroom was founded in 1838 and is considered the first European-established town in the former Transvaal.'}],
+ MAH:[{stat:'Place of rocks',sl:'Mahikeng',t:'A name from the landscape',x:'Mahikeng is Setswana for "place of rocks". The siege of Mafeking, as it was then called, lasted from October 1899 to May 1900.'}],
+ MKO:[{stat:'Pilanesberg',sl:'extinct volcano',t:'A park inside a volcano',x:'Pilanesberg National Park, near Sun City, sits inside the remains of an extinct alkaline volcano.'}],
+ MBO:[{stat:'Giraffes',sl:'Mbombela Stadium',t:'A stadium held up by giraffes',x:'Mbombela Stadium, built for the 2010 World Cup, has support pillars shaped like giraffes.'}],
+ EMA:[{stat:'Coal',sl:'Emalahleni',t:'The name means place of coal',x:'Emalahleni, formerly Witbank, takes its isiZulu name from the coal that lies beneath the area.'}],
+ SBT:[{stat:'Stainless',sl:'Middelburg',t:'A stainless steel town',x:'Middelburg in Mpumalanga is a major centre of South Africa’s stainless steel industry.'}],
+ GVM:[{stat:'Secunda',sl:'Sasol',t:'Fuel from coal',x:'Secunda is home to Sasol’s coal-to-liquids complex, often described as the largest of its kind in the world.'}],
+ BSH:[{stat:'Kruger',sl:'next door',t:'Wildlife at the fence',x:'Bushbuckridge borders the Kruger National Park and the private Sabi Sand reserves.'}],
+ NKZ:[{stat:'Sugarcane',sl:'Lowveld',t:'Sweet country',x:'Nkomazi’s warm Lowveld climate supports large sugarcane and citrus farms.'}],
+ POL:[{stat:'Place of safety',sl:'Polokwane',t:'A name from Sepedi',x:'Polokwane is Sepedi for "place of safety". The city was formerly called Pietersburg.'}],
+ MSN:[{stat:'13th century',sl:'Mapungubwe',t:'The golden rhino kingdom',x:'Mapungubwe, near Musina, was an Iron Age kingdom whose gold rhinoceros dates from around the 13th century. Its landscape is a World Heritage Site.'}],
+ THU:[{stat:'Lake Fundudzi',sl:'near Thohoyandou',t:'A sacred lake',x:'Lake Fundudzi is sacred to the Venda people and is one of the few natural inland lakes in South Africa.'}],
+ MKH:[{stat:'Baobabs',sl:'Soutpansberg',t:'Baobab country',x:'Makhado lies below the Soutpansberg mountains, and baobab trees believed to be over a thousand years old grow in the surrounding bushveld.'}],
+ TZN:[{stat:'Tea, avocados, mangoes',sl:'Tzaneen',t:'The fruit basket',x:'Greater Tzaneen is one of the country’s main areas for avocados, mangoes and tea.'}],
+ MGK:[{stat:'Makapan Valley',sl:'near Mokopane',t:'Early human fossils',x:'The Makapan Valley near Mokopane has produced early human ancestor fossils and is part of the Fossil Hominid Sites of South Africa World Heritage Site.'}],
+ LEP:[{stat:'Medupi',sl:'and Matimba',t:'Giant power stations',x:'The Medupi and Matimba power stations near Lephalale are among the largest dry-cooled coal-fired power stations in the world.'}],
+ SOL:[{stat:'Big Hole',sl:'Kimberley',t:'A hole dug by hand',x:'The Big Hole in Kimberley was dug largely by hand in the 1870s and 1880s and is more than 200 metres deep.'}],
+ DKR:[{stat:'Upington',sl:'runway',t:'A very long runway in the Kalahari',x:'Upington airport has one of the longest runways in Africa and was once designated an emergency landing site for the US space shuttle.'}],
+ EMT:[{stat:'De Aar',sl:'rail junction',t:'A railway crossroads',x:'De Aar is one of South Africa’s most important railway junctions, linking Cape Town, Johannesburg, Namibia and the Eastern Cape.'}],
+ NKH:[{stat:'Namaqualand',sl:'flowers',t:'A desert that blooms',x:'After good winter rains, Namaqualand around Springbok turns into a carpet of wildflowers each spring.'}],
+ GAM:[{stat:'Sishen',sl:'iron ore',t:'Iron ore country',x:'The Sishen mine near Kathu is one of the largest iron ore mines in South Africa.'}]};
+const hashStr=t=>{let x=7;for(const c of String(t))x=(x*31+c.charCodeAt(0))%1000003;return x;};
+function dailyIndex(n,key){const day=Math.floor((Date.now()+2*36e5)/DAY),cycle=Math.floor(day/n),order=[...Array(n).keys()],r=rnd(cycle*7919+hashStr(key)+n*131+1);
+ for(let i=n-1;i>0;i--){const j=Math.floor(r()*(i+1));const t=order[i];order[i]=order[j];order[j]=t;}return order[day%n];}
+const factCard=f=>h('article',{class:'fact'},h('div',{class:'st'},f.stat),h('div',{class:'sl'},f.sl),h('h3',null,f.t),h('p',null,f.x),f.where?h('span',{class:'where'},f.where):h('span',{class:'chip'},f.cat));
+function renderFacts(){
+ const st=S.facts||(S.facts={cat:'All',pick:null,key:'',qi:0,score:0,ans:null,done:false}),wrap=h('div',{class:'stack'});
+ const p=S.profile,m=p?MUNI[p.mun]:null,key=m?m.id:'national';
+ if(st.key!==key){st.key=key;st.pick=null;}
+ const tag=(arr,where)=>arr.map(f=>({...f,cat:'Near you',where}));
+ const local=m?tag(LOCAL[m.id]||[],m.name):[],prov=m?tag(PROVF[m.prov]||[],PROV[m.prov].name):[],around=[];
+ if(m)nearbyMunis(p,KM).filter(x=>x.m.id!==m.id).forEach(x=>tag(LOCAL[x.m.id]||[],x.m.name+' · '+Math.round(x.d)+' km away').forEach(f=>around.push(f)));
+ const pool=m?local.concat(prov,around):FACTS,featBox=h('div'),chips=h('div',{class:'tabs','aria-label':'Filter by topic'}),grid=h('div',{class:'fgrid'}),quizBox=h('div',{class:'card quiz stack'});
+ const today=dailyIndex(pool.length,key),cats=['All'].concat(FACTS.map(f=>f.cat).filter((c,i,a)=>a.indexOf(c)===i));
+ function paintFeat(){const f=pool[st.pick==null?today:st.pick];
+  clear(featBox).append(h('div',{class:'ffeat'},h('div',null,h('div',{class:'eyebrow'},(st.pick==null?'Fact of the day':'Random fact')+(f.where?' · '+f.where:'')),h('div',{class:'big'+(String(f.stat).length>8?' long':'')},f.stat),h('div',{class:'mono'},f.sl)),
+   h('div',{class:'stack',style:'gap:10px'},h('h2',null,f.t),h('p',{style:'margin:0;font-size:16.5px'},f.x),
+    pool.length>1?h('button',{class:'btn',type:'button',onclick:()=>{const cur=st.pick==null?today:st.pick;let n;do{n=Math.floor(Math.random()*pool.length);}while(n===cur);st.pick=n;paintFeat();}},'Show me another'):null)));}
+ function paintGrid(){clear(chips).append(cats.map(c=>h('button',{type:'button',class:'tab','aria-pressed':String(st.cat===c),'aria-selected':String(st.cat===c),onclick:()=>{st.cat=c;paintGrid();}},c)));
+  clear(grid).append(FACTS.filter(f=>st.cat==='All'||f.cat===st.cat).map(factCard));}
+ function paintQuiz(){clear(quizBox);quizBox.append(h('div',null,h('div',{class:'eyebrow'},'Test yourself'),h('h2',null,'Six questions, all from the national facts')));
+  if(st.done){quizBox.append(h('p',{style:'margin:0;font-size:18px'},'You scored '+st.score+' out of '+QUIZ.length+'.'),
+   h('div',{class:'row'},h('button',{class:'btn primary',type:'button',onclick:()=>{Object.assign(st,{qi:0,score:0,ans:null,done:false});paintQuiz();}},'Play again'),h('a',{class:'btn',href:'#new'},'Now put your knowledge to work: report an issue')));return;}
+  const q=QUIZ[st.qi];quizBox.append(h('div',{class:'small muted'},'Question '+(st.qi+1)+' of '+QUIZ.length),h('b',{style:'font-size:16.5px'},q.q),
+   h('div',{class:'opts'},q.o.map((o,k)=>h('button',{type:'button',disabled:st.ans!=null||null,class:st.ans==null?'':(k===q.a?'right':(k===st.ans?'wrong':'')),onclick:()=>{st.ans=k;if(k===q.a)st.score++;paintQuiz();}},o))));
+  if(st.ans!=null){quizBox.append(h('div',{class:'notice',role:'status'},(st.ans===q.a?'Correct. ':'Not quite. ')+FACTS[q.w].x),
+   h('button',{class:'btn primary',type:'button',style:'align-self:flex-start',onclick:()=>{if(st.qi+1>=QUIZ.length)st.done=true;else{st.qi++;st.ans=null;}paintQuiz();}},st.qi+1>=QUIZ.length?'See my score':'Next question'));}}
+ wrap.append(h('div',null,h('h2',null,m?'Fun facts around '+m.name:'Fun facts about South Africa'),
+  h('p',{class:'muted',style:'margin:4px 0 0'},m?'Today’s fact is picked from '+m.name+', '+PROV[m.prov].name+' and places within '+KM+' km. A new one appears every day.':'A new fact appears every day.')));
+ if(!m)wrap.append(h('div',{class:'card flat row'},h('span',{class:'grow'},'Tell us where you are from and the facts will follow you home.'),h('button',{class:'btn primary',type:'button',onclick:openProfile},'Set my area')));
+ wrap.append(featBox);
+ if(m){
+  const sec=(title,arr,empty)=>h('section',{class:'fsec'},h('h3',null,title),arr.length?h('div',{class:'fgrid'},arr.map(factCard)):h('p',{class:'small muted',style:'margin:0'},empty));
+  wrap.append(sec('In and around '+m.name,local,'No local fact for '+m.name+' yet. The province facts below still apply.'));
+  if(around.length)wrap.append(sec('Within '+KM+' km',around,''));
+  wrap.append(sec('In '+PROV[m.prov].name,prov,''));
+ }
+ wrap.append(h('section',{class:'fsec'},h('h3',null,'Across South Africa'),chips,grid),quizBox);
+ paintFeat();paintGrid();paintQuiz();return wrap;}
+
+/* ------------------------------------------------------------------ boot */
+S.profile=loadProfile();S.scope=(S.profile&&S.profile.scope)||'all';S.draft=blankDraft();
+S.route=parseHash();render();initData();
+if(!(S.profile&&S.profile.acct))setTimeout(()=>openProfile('account'),350);
+})();
+</script>
+
+</body>
+</html>
